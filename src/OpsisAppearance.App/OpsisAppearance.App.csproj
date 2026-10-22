@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The stand-alone app: tray icon + its own window, same engine as the Opsis plugin. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OpsisAppearance</AssemblyName>
+    <RootNamespace>OpsisAppearance.App</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>1.2.0</Version>
+    <Product>Opsis Appearance</Product>
+    <Company>Opsis Team</Company>
+    <Copyright>Copyright (c) 2026 Opsis Team</Copyright>
+    <Description>Opsis Appearance - change the look of Windows 11 itself (automatic Light/Dark, accent, taskbar, window effects).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpsisAppearance.Plugin\OpsisAppearancePlugin.csproj" />
+    <Reference Include="OpsisNewsCrawler.Plugin.Abstractions">
+      <HintPath>..\..\libs\OpsisNewsCrawler.Plugin.Abstractions.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Opsis plugin DLL. Opsis loads any "*Plugin.dll" from plugins\<folder>\ (see PluginHost.cs in the Opsis repo).
+       The same classes are reused by the stand-alone app (OpsisAppearance.App). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OpsisAppearancePlugin</AssemblyName>
+    <RootNamespace>OpsisAppearance</RootNamespace>
+    <Version>1.2.0</Version>
+    <Product>Opsis Appearance</Product>
+    <Company>Opsis Team</Company>
+    <Copyright>Copyright (c) 2026 Opsis Team</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpsisAppearance.Tests" />
+    <!-- The contract is shared with the host: never copy it next to the plugin (the stand-alone app copies it itself). -->
+    <Reference Include="OpsisNewsCrawler.Plugin.Abstractions">
+      <HintPath>..\..\libs\OpsisNewsCrawler.Plugin.Abstractions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
