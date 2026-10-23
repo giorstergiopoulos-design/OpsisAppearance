@@ -75,6 +75,12 @@ public sealed class Look
     public bool? ShowTaskView { get; set; }
     public bool? ShowWidgets { get; set; }
     public bool? ShowSearch { get; set; }
+    // Εξερευνητής / shell (Seelen-style ρυθμίσεις συμπεριφοράς της εμφάνισης)
+    public bool? ShowFileExtensions { get; set; }
+    public bool? ShowHiddenFiles { get; set; }
+    public bool? ClockSeconds { get; set; }       // δευτερόλεπτα στο ρολόι του taskbar
+    public int? TaskbarCombine { get; set; }      // 0 = πάντα συνδυασμός, 1 = όταν γεμίσει, 2 = ποτέ (με ετικέτες)
+    public bool? Animations { get; set; }         // animation ελαχιστοποίησης/μεγιστοποίησης παραθύρων
 }
 
 public sealed class AppearanceSettings
@@ -86,6 +92,7 @@ public sealed class AppearanceSettings
     public string DarkAt { get; set; } = "19:00";
     public int SunOffsetMinutes { get; set; } = 0;      // + later, - earlier
     public EffectsSettings Effects { get; set; } = new();     // εφέ παραθύρων (βλ. WindowEffects.cs)
+    public SlideshowSettings Slideshow { get; set; } = new(); // wallpaper slideshow (βλ. Slideshow.cs)
 }
 
 /// <summary>Reads/writes the Windows appearance values. Everything is HKCU and reversible (see <see cref="Snapshot"/>).</summary>
@@ -97,6 +104,7 @@ public sealed class AppearanceEngine
     public const string Dwm = @"Software\Microsoft\Windows\DWM";
     public const string Accent = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent";
     public const string Desktop = @"Control Panel\Desktop";
+    public const string WindowMetrics = @"Control Panel\Desktop\WindowMetrics";
 
     private readonly IRegistryStore _reg;
     private readonly Action _broadcast;
@@ -123,6 +131,11 @@ public sealed class AppearanceEngine
         ShowTaskView = Flag(Advanced, "ShowTaskViewButton", true),
         ShowWidgets = Flag(Advanced, "TaskbarDa", true),
         ShowSearch = !(_reg.Get(Search, "SearchboxTaskbarMode") is int sm && sm == 0),
+        ShowFileExtensions = !Flag(Advanced, "HideFileExt", true),
+        ShowHiddenFiles = _reg.Get(Advanced, "Hidden") is int hid && hid == 1,
+        ClockSeconds = Flag(Advanced, "ShowSecondsInSystemClock", false),
+        TaskbarCombine = _reg.Get(Advanced, "TaskbarGlomLevel") is int glom ? Math.Clamp(glom, 0, 2) : 0,
+        Animations = !(_reg.Get(WindowMetrics, "MinAnimate") is string ma && ma == "0"),
         AccentRgb = ReadAccent(),
     };
 
@@ -142,6 +155,7 @@ public sealed class AppearanceEngine
         (Personalize, "ColorPrevalence"), (Advanced, "TaskbarAl"), (Advanced, "ShowTaskViewButton"), (Advanced, "TaskbarDa"),
         (Search, "SearchboxTaskbarMode"), (Dwm, "AccentColor"), (Dwm, "ColorizationColor"), (Dwm, "AccentColorInactive"),
         (Accent, "AccentColorMenu"), (Accent, "StartColorMenu"), (Accent, "AccentPalette"), (Desktop, "AutoColorization"),
+        (Advanced, "HideFileExt"), (Advanced, "Hidden"), (Advanced, "ShowSecondsInSystemClock"), (Advanced, "TaskbarGlomLevel"), (WindowMetrics, "MinAnimate"),
     };
 
     public sealed class SnapshotEntry { public string Key { get; set; } = ""; public string Name { get; set; } = ""; public string? Kind { get; set; } public string? Text { get; set; } }
@@ -202,6 +216,11 @@ public sealed class AppearanceEngine
         if (look.ShowTaskView is bool tv) SetFlag(Advanced, "ShowTaskViewButton", tv);
         if (look.ShowWidgets is bool w) SetFlag(Advanced, "TaskbarDa", w);
         if (look.ShowSearch is bool s) _reg.Set(Search, "SearchboxTaskbarMode", s ? 2 : 0, RegistryValueKind.DWord);
+        if (look.ShowFileExtensions is bool fe) SetFlag(Advanced, "HideFileExt", !fe);
+        if (look.ShowHiddenFiles is bool hf) _reg.Set(Advanced, "Hidden", hf ? 1 : 2, RegistryValueKind.DWord);
+        if (look.ClockSeconds is bool cs) SetFlag(Advanced, "ShowSecondsInSystemClock", cs);
+        if (look.TaskbarCombine is int tc) _reg.Set(Advanced, "TaskbarGlomLevel", Math.Clamp(tc, 0, 2), RegistryValueKind.DWord);
+        if (look.Animations is bool an) _reg.Set(WindowMetrics, "MinAnimate", an ? "1" : "0", RegistryValueKind.String);
         _broadcast();
     }
 

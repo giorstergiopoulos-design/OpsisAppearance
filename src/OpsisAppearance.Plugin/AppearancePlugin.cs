@@ -24,11 +24,14 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
     private ThemeLibrary _themes = new(ThemeLibrary.DefaultRoot);
     private ThemeApplier _applier = null!;
     private WinEventWatcher? _watcher;
+    private readonly IWallpaperApi _wallpaperApi;
+    private System.Windows.Forms.Timer? _slideTimer;
 
     public OpsisAppearancePlugin() : this(new CurrentUserRegistry()) { }
     internal OpsisAppearancePlugin(IRegistryStore registry, IDwmWindows? dwm = null, ITaskbarControl? taskbar = null, IWallpaperApi? wallpaper = null, string? themesRoot = null)
     {
         if (themesRoot != null) _themes = new ThemeLibrary(themesRoot);
+        _wallpaperApi = wallpaper ?? new RealWallpaper();
         _engine = new AppearanceEngine(registry);
         _effects = new WindowEffectsEngine(dwm ?? new RealDwmWindows(), taskbar ?? new RealTaskbar(), () => _engine.IsDark);
         _applier = new ThemeApplier(_engine, fx => { _settings.Effects = fx; ApplyEffects(); }, wallpaper ?? new RealWallpaper(), _themes);
@@ -38,25 +41,27 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     public string Id => "giorstergiopoulos.opsisappearance";
     public string Name => "Opsis Appearance";
-    public string Version => "1.2.0";
+    public string Version => "1.3.0";
 
     public void Start()
     {
         _settings = _store.Load();
         ApplySchedule(force: true);
         UpdateTimer();
+        UpdateSlideTimer();
         ApplyEffects();
     }
 
     public void Stop()
     {
         _timer?.Stop(); _timer?.Dispose(); _timer = null;
+        _slideTimer?.Stop(); _slideTimer?.Dispose(); _slideTimer = null;
         _watcher?.Dispose(); _watcher = null;
         try { _effects.RestoreAll(); } catch (Exception) { }     // τα εφέ ζουν μόνο όσο τρέχει το plugin: επαναφορά πλήρης
     }
-    public void Pause() => _timer?.Stop();
-    public void Resume() { UpdateTimer(); ApplySchedule(force: false); }
-    public void Refresh() { _settings = _store.Load(); ApplySchedule(force: true); UpdateTimer(); _page?.RefreshAll(); }
+    public void Pause() { _timer?.Stop(); _slideTimer?.Stop(); }
+    public void Resume() { UpdateTimer(); UpdateSlideTimer(); ApplySchedule(force: false); }
+    public void Refresh() { _settings = _store.Load(); ApplySchedule(force: true); UpdateTimer(); UpdateSlideTimer(); _page?.RefreshAll(); }
     public void SetMode(string mode) { }
     public void SetPosition(string position) { }
     public void SetHardwareProfile(string tier) { }
@@ -144,7 +149,55 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
         if (!_store.HasBackup) _store.SaveBackupOnce(_engine.Snapshot());
     }
 
-    internal void SaveSettings() { _store.Save(_settings); UpdateTimer(); ApplySchedule(force: true); }
+    internal void SaveSettings() { _store.Save(_settings); UpdateTimer(); UpdateSlideTimer(); ApplySchedule(force: true); }
+
+    // ---- wallpaper slideshow -------------------------------------------------------------------------------------
+
+    private void UpdateSlideTimer()
+    {
+        if (!_settings.Slideshow.Enabled) { _slideTimer?.Stop(); return; }
+        if (_slideTimer == null)
+        {
+            _slideTimer = new System.Windows.Forms.Timer { Interval = 60_000 };      // one cheap check a minute, only while the slideshow is on
+            _slideTimer.Tick += (_, _) => SlideshowTick(DateTime.UtcNow, force: false);
+        }
+        _slideTimer.Start();
+        SlideshowTick(DateTime.UtcNow, force: false);
+    }
+
+    /// <summary>Αλλάζει το wallpaper αν πέρασε το διάστημα (ή πάντα με force). Επιστρέφει true αν άλλαξε.</summary>
+    internal bool SlideshowTick(DateTime utcNow, bool force)
+    {
+        var s = _settings.Slideshow;
+        try
+        {
+            if (!force && !WallpaperSlideshow.Due(s, utcNow)) return false;
+            var images = WallpaperSlideshow.Images(s.Folder);
+            var next = WallpaperSlideshow.Pick(images, s.LastFile, s.Shuffle);
+            if (next == null) return false;
+            if (s.OriginalPath == null)
+            {
+                var cur = _wallpaperApi.Current();
+                s.OriginalPath = cur.Path ?? ""; s.OriginalStyle = cur.Style;
+            }
+            _wallpaperApi.Set(next, s.Style);
+            s.LastFile = next; s.LastChangeUtc = utcNow;
+            _store.Save(_settings);
+            _page?.RefreshAll();
+            return true;
+        }
+        catch (Exception) { return false; }     // a missing/locked picture must not stop the plugin; the next tick tries again
+    }
+
+    /// <summary>Σταματά το slideshow και γυρνά το wallpaper που είχες πριν ξεκινήσει.</summary>
+    internal void StopSlideshow(bool restoreWallpaper)
+    {
+        var s = _settings.Slideshow;
+        s.Enabled = false;
+        try { if (restoreWallpaper && !string.IsNullOrEmpty(s.OriginalPath) && File.Exists(s.OriginalPath)) _wallpaperApi.Set(s.OriginalPath, s.OriginalStyle); } catch (Exception) { }
+        s.OriginalPath = null;
+        SaveSettings();
+    }
 
     internal void RestoreOriginal()
     {
@@ -223,6 +276,11 @@ internal sealed class AppearancePage : UserControl
     private readonly Button _borderColor = new();
     private readonly ComboBox _corners = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _titleBars = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _backdrop = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
     private readonly Label _tCorners = new(), _tTitle = new(), _tBackdrop = new();
+    private readonly Label _hShell = new(), _hSlide = new(), _tCombine = new(), _tSlideEvery = new(), _tSlideStyle = new(), _slideInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) }, _tShellNote = new();
+    private readonly CheckBox _fileExt = new(), _hiddenFiles = new(), _clockSecs = new(), _animations = new(), _slideOn = new(), _slideShuffle = new();
+    private readonly ComboBox _combine = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 230 }, _slideStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly NumericUpDown _slideMin = new() { Minimum = 1, Maximum = 1440, Width = 70, Value = 30 };
+    private readonly Button _slideFolder = new(), _slideNext = new(), _restartExplorer = new();
     private readonly Label _tLight = new(), _tDark = new(), _tLat = new(), _tLon = new(), _tOff = new(), _tSafety = new();
 
     private static readonly int[] SwatchColors =
@@ -235,13 +293,14 @@ internal sealed class AppearancePage : UserControl
         _p = plugin; _pal = pal; _greek = greek;
         DoubleBuffered = true; Dock = DockStyle.Fill;
         Controls.Add(_flow);
-        _headings.AddRange(new[] { _hSchedule, _hAccent, _hTaskbar, _hLooks, _hEffects, _hWinThemes });
-        _texts.AddRange(new[] { _tLight, _tDark, _tLat, _tLon, _tOff, _tSafety, _tCorners, _tTitle, _tBackdrop });
+        _headings.AddRange(new[] { _hSchedule, _hAccent, _hTaskbar, _hLooks, _hEffects, _hWinThemes, _hShell, _hSlide });
+        _texts.AddRange(new[] { _tLight, _tDark, _tLat, _tLon, _tOff, _tSafety, _tCorners, _tTitle, _tBackdrop, _tCombine, _tSlideEvery, _tSlideStyle, _slideInfo, _tShellNote });
         _radios.AddRange(new[] { _manual, _autoSun, _autoFixed });
-        _checks.AddRange(new[] { _transp, _accentSurf, _centered, _search, _taskView, _widgets, _borderCheck, _hideTaskbar });
-        _buttons.AddRange(new[] { _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
+        _checks.AddRange(new[] { _transp, _accentSurf, _centered, _search, _taskView, _widgets, _borderCheck, _hideTaskbar, _fileExt, _hiddenFiles, _clockSecs, _animations, _slideOn, _slideShuffle });
+        _buttons.AddRange(new[] { _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
         foreach (var h in _headings) { h.AutoSize = true; h.Font = new Font("Segoe UI Semibold", 12f); h.Margin = new Padding(0, 14, 0, 4); }
         foreach (var t in _texts) { t.AutoSize = true; t.Margin = new Padding(0, 6, 4, 0); }
+        _tShellNote.MaximumSize = new Size(760, 0); _slideInfo.Margin = new Padding(0, 4, 0, 6);
         _tSafety.MaximumSize = new Size(760, 0); _tWinThemes.MaximumSize = new Size(760, 0); _themeInfo.Margin = new Padding(0, 4, 0, 6);
 
         _flow.Controls.Add(_status);
@@ -261,6 +320,14 @@ internal sealed class AppearancePage : UserControl
         _flow.Controls.Add(Row(_tCorners, _corners, _tTitle, _titleBars));
         _flow.Controls.Add(Row(_tBackdrop, _backdrop));
         _flow.Controls.Add(Row(_hideTaskbar));
+        _flow.Controls.Add(_hShell);
+        _flow.Controls.Add(Row(_fileExt, _hiddenFiles, _clockSecs, _animations));
+        _flow.Controls.Add(Row(_tCombine, _combine, _restartExplorer));
+        _flow.Controls.Add(_tShellNote);
+        _flow.Controls.Add(_hSlide);
+        _flow.Controls.Add(Row(_slideOn, _slideShuffle));
+        _flow.Controls.Add(Row(_slideFolder, _tSlideEvery, _slideMin, _tSlideStyle, _slideStyle, _slideNext));
+        _flow.Controls.Add(_slideInfo);
         _flow.Controls.Add(_hLooks);
         _flow.Controls.Add(_themeList);
         _flow.Controls.Add(_themeInfo);
@@ -304,6 +371,34 @@ internal sealed class AppearancePage : UserControl
         _search.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowSearch = _search.Checked }));
         _taskView.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowTaskView = _taskView.Checked }));
         _widgets.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowWidgets = _widgets.Checked }));
+        _fileExt.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowFileExtensions = _fileExt.Checked }));
+        _hiddenFiles.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowHiddenFiles = _hiddenFiles.Checked }));
+        _clockSecs.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ClockSeconds = _clockSecs.Checked }));
+        _animations.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { Animations = _animations.Checked }));
+        _combine.SelectedIndexChanged += (_, _) => { if (!_loading) Do(() => _p.Engine.Apply(new Look { TaskbarCombine = _combine.SelectedIndex })); };
+        _restartExplorer.Click += (_, _) =>
+        {
+            var ask = _greek ? "Ο Εξερευνητής των Windows θα κλείσει και θα ξανανοίξει (η γραμμή εργασιών θα εξαφανιστεί για λίγα δευτερόλεπτα). Συνέχεια;" : "Windows Explorer will close and start again (the taskbar disappears for a few seconds). Continue?";
+            if (MessageBox.Show(this, ask, "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            try { using var k = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskkill", "/f /im explorer.exe") { CreateNoWindow = true, UseShellExecute = false }); k?.WaitForExit(5000); }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+        };
+        _slideOn.Click += (_, _) =>
+        {
+            var sl = _p.Settings.Slideshow;
+            if (_slideOn.Checked)
+            {
+                if (WallpaperSlideshow.Images(sl.Folder).Count == 0 && !PickSlideFolder()) { _slideOn.Checked = false; return; }
+                sl.Enabled = true; sl.LastChangeUtc = null; _p.SaveSettings();
+            }
+            else _p.StopSlideshow(restoreWallpaper: true);
+            RefreshAll();
+        };
+        _slideShuffle.Click += (_, _) => { _p.Settings.Slideshow.Shuffle = _slideShuffle.Checked; _p.SaveSettings(); };
+        _slideMin.ValueChanged += (_, _) => { if (_loading) return; _p.Settings.Slideshow.IntervalMinutes = (int)_slideMin.Value; _p.SaveSettings(); };
+        _slideStyle.SelectedIndexChanged += (_, _) => { if (_loading) return; _p.Settings.Slideshow.Style = (WallpaperStyle)_slideStyle.SelectedIndex; _p.SaveSettings(); };
+        _slideFolder.Click += (_, _) => { if (PickSlideFolder()) RefreshAll(); };
+        _slideNext.Click += (_, _) => { if (!_p.SlideshowTick(DateTime.UtcNow, force: true)) MessageBox.Show(this, _greek ? "Δεν βρέθηκαν εικόνες (png, jpg, bmp) στον φάκελο." : "No pictures (png, jpg, bmp) found in the folder.", "Opsis Appearance"); RefreshAll(); };
         _borderCheck.Click += (_, _) => ChangeEffects(e => e.ActiveBorder = _borderCheck.Checked);
         _borderColor.Click += (_, _) =>
         {
@@ -360,6 +455,14 @@ internal sealed class AppearancePage : UserControl
         try { change(_p.Settings.Effects); _p.Store.Save(_p.Settings); _p.ApplyEffects(); }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
         RefreshAll();
+    }
+
+    private bool PickSlideFolder()
+    {
+        using var dlg = new FolderBrowserDialog { Description = _greek ? "Φάκελος με εικόνες για το slideshow" : "Folder with pictures for the slideshow", UseDescriptionForTitle = true, SelectedPath = _p.Settings.Slideshow.Folder };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return false;
+        _p.Settings.Slideshow.Folder = dlg.SelectedPath; _p.SaveSettings();
+        return true;
     }
 
     private void ModeChanged(ThemeMode mode, RadioButton rb)
@@ -536,6 +639,20 @@ internal sealed class AppearancePage : UserControl
         void Fill(ComboBox cb, string[] items) { int i = cb.SelectedIndex; cb.Items.Clear(); cb.Items.AddRange(items); cb.SelectedIndex = Math.Max(0, i); }
         _loading = true; Fill(_corners, cs); Fill(_titleBars, ds); Fill(_backdrop, bs); _loading = false;
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
+        _hShell.Text = T("Εξερευνητής και taskbar (συμπεριφορά)", "Explorer & taskbar (behaviour)");
+        _fileExt.Text = T("Εμφάνιση επεκτάσεων αρχείων", "Show file extensions"); _hiddenFiles.Text = T("Εμφάνιση κρυφών αρχείων", "Show hidden files");
+        _clockSecs.Text = T("Δευτερόλεπτα στο ρολόι", "Seconds in the clock"); _animations.Text = T("Animations παραθύρων", "Window animations");
+        _tCombine.Text = T("Κουμπιά εφαρμογών στο taskbar", "Taskbar buttons");
+        _restartExplorer.Text = T("↻ Επανεκκίνηση Εξερευνητή", "↻ Restart Explorer");
+        _tShellNote.Text = T("Κάποιες αλλαγές (συνδυασμός κουμπιών, κρυφά αρχεία) φαίνονται αμέσως ή μετά από επανεκκίνηση του Εξερευνητή.", "Some changes (button grouping, hidden files) apply at once or after Explorer is restarted.");
+        _hSlide.Text = T("Wallpaper slideshow", "Wallpaper slideshow");
+        _slideOn.Text = T("Αλλαγή wallpaper από φάκελο", "Change the wallpaper from a folder"); _slideShuffle.Text = T("Τυχαία σειρά", "Shuffle");
+        _slideFolder.Text = T("Φάκελος…", "Folder…"); _slideNext.Text = T("Επόμενο τώρα", "Next now");
+        _tSlideEvery.Text = T("κάθε (λεπτά)", "every (min)"); _tSlideStyle.Text = T("Προσαρμογή", "Fit");
+        _loading = true;
+        { int i = _combine.SelectedIndex; _combine.Items.Clear(); _combine.Items.AddRange(greek ? new[] { "Πάντα συνδυασμός", "Συνδυασμός όταν γεμίσει", "Ποτέ (με ετικέτες)" } : new[] { "Always combine", "Combine when full", "Never (with labels)" }); _combine.SelectedIndex = Math.Max(0, i); }
+        { int i = _slideStyle.SelectedIndex; _slideStyle.Items.Clear(); _slideStyle.Items.AddRange(greek ? new[] { "Γέμισμα", "Προσαρμογή", "Έκταση", "Πλακίδια", "Κέντρο", "Span" } : new[] { "Fill", "Fit", "Stretch", "Tile", "Center", "Span" }); _slideStyle.SelectedIndex = Math.Max(0, i); }
+        _loading = false;
         _hLooks.Text = T("Theme manager — πλήρη θέματα (εμφάνιση Windows + εφέ + wallpaper)", "Theme manager — full themes (Windows look + effects + wallpaper)");
         _themeApply.Text = T("Εφαρμογή", "Apply"); _themeSave.Text = T("Αποθήκευση τρέχουσας ως θέμα…", "Save current as theme…"); _themeDelete.Text = T("Διαγραφή", "Delete");
         _themeImport.Text = T("Εισαγωγή (.opsistheme)…", "Import (.opsistheme)…"); _themeExport.Text = T("Εξαγωγή…", "Export…"); _themeFolder.Text = T("Φάκελος θεμάτων", "Themes folder");
@@ -560,14 +677,14 @@ internal sealed class AppearancePage : UserControl
         foreach (var r in _radios) { r.ForeColor = p.Text; r.BackColor = p.Bg; }
         foreach (var b in _buttons) StyleButton(b);
         _themeList.Invalidate();
-        foreach (var cb in new ComboBox[] { _corners, _titleBars, _backdrop, _winThemes })
+        foreach (var cb in new ComboBox[] { _corners, _titleBars, _backdrop, _winThemes, _combine, _slideStyle })
         {
             cb.BackColor = p.Surface; cb.ForeColor = p.Text; cb.FlatStyle = FlatStyle.Flat;
             cb.DrawMode = DrawMode.OwnerDrawFixed; cb.ItemHeight = 20;
             cb.DrawItem -= DrawComboItem; cb.DrawItem += DrawComboItem;      // dark list + dark face instead of the white system one
         }
         foreach (var t in new TextBox[] { _lightAt, _darkAt }) { t.BackColor = p.Surface; t.ForeColor = p.Text; }
-        foreach (var n in new NumericUpDown[] { _lat, _lon, _offset }) { n.BackColor = p.Surface; n.ForeColor = p.Text; }
+        foreach (var n in new NumericUpDown[] { _lat, _lon, _offset, _slideMin }) { n.BackColor = p.Surface; n.ForeColor = p.Text; }
         foreach (Control c in _flow.Controls) if (c is FlowLayoutPanel row) row.BackColor = p.Bg;
     }
 
@@ -589,6 +706,14 @@ internal sealed class AppearancePage : UserControl
         _lat.Enabled = _lon.Enabled = _offset.Enabled = sun; _lightAt.Enabled = _darkAt.Enabled = fixedT;
         _transp.Checked = cur.Transparency == true; _accentSurf.Checked = cur.AccentOnSurfaces == true; _centered.Checked = cur.TaskbarCentered == true;
         _search.Checked = cur.ShowSearch == true; _taskView.Checked = cur.ShowTaskView == true; _widgets.Checked = cur.ShowWidgets == true;
+        _fileExt.Checked = cur.ShowFileExtensions == true; _hiddenFiles.Checked = cur.ShowHiddenFiles == true; _clockSecs.Checked = cur.ClockSeconds == true;
+        _animations.Checked = cur.Animations == true; _combine.SelectedIndex = Math.Clamp(cur.TaskbarCombine ?? 0, 0, 2);
+        var sl = s.Slideshow;
+        _slideOn.Checked = sl.Enabled; _slideShuffle.Checked = sl.Shuffle; _slideMin.Value = Math.Clamp(sl.IntervalMinutes, 1, 1440); _slideStyle.SelectedIndex = Math.Clamp((int)sl.Style, 0, 5);
+        int pics = WallpaperSlideshow.Images(sl.Folder).Count;
+        _slideInfo.Text = string.IsNullOrWhiteSpace(sl.Folder)
+            ? (_greek ? "Διάλεξε φάκελο με εικόνες (png, jpg, bmp)." : "Choose a folder with pictures (png, jpg, bmp).")
+            : $"{sl.Folder}  ·  {pics} " + (_greek ? "εικόνες" : "pictures") + (sl.LastFile != null ? $"  ·  {(_greek ? "τελευταία" : "last")}: {Path.GetFileName(sl.LastFile)}" : "");
         _restore.Enabled = _p.Store.HasBackup;
         var fx = s.Effects;
         _borderCheck.Checked = fx.ActiveBorder; _hideTaskbar.Checked = fx.AutoHideTaskbar;

@@ -22,7 +22,7 @@ internal static class Program
             plugin.SetLanguage(args.Contains("--el") ? "el" : "en");
             plugin.SetTheme(true, Color.FromArgb(255, 18, 22, 32).ToArgb(), Color.FromArgb(255, 28, 34, 48).ToArgb(), Color.FromArgb(255, 52, 62, 84).ToArgb(), Color.FromArgb(255, 235, 240, 250).ToArgb(), Color.FromArgb(255, 150, 160, 180).ToArgb(), Color.FromArgb(255, 0, 200, 230).ToArgb(), 1.0);
             var page = plugin.GetNavigationItems()[0].CreatePage();
-            using var form = new Form { ClientSize = new Size(820, 1250), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
+            using var form = new Form { ClientSize = new Size(820, 1750), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
             form.Controls.Add(page); form.Show(); Application.DoEvents();
             using var bmp = new Bitmap(form.ClientSize.Width, form.ClientSize.Height);
             page.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));

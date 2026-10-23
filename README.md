@@ -12,7 +12,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-0078D6?logo=windows&logoColor=white" />
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" />
-  <img alt="Version" src="https://img.shields.io/badge/version-1.2.0-00B4D8" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.3.0-00B4D8" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
@@ -28,6 +28,8 @@
 | 🎨 Accent | 12 έτοιμα χρώματα, δικό σου χρώμα, ή **χρώμα από το wallpaper** (κυρίαρχο χρώμα της εικόνας) |
 | 🧱 Taskbar | Στοίχιση αριστερά/κέντρο, Αναζήτηση, Task View, Widgets, διαφάνειες, accent σε Start/taskbar/τίτλους |
 | 🪟 Εφέ παραθύρων | Χρωματιστό **border στο ενεργό παράθυρο**, **γωνίες** (στρογγυλές/μικρές/τετράγωνες), **σκούρες γραμμές τίτλου**, backdrop **Mica / Acrylic / Tabbed**, αυτόματη απόκρυψη taskbar |
+| 📁 Εξερευνητής και taskbar | Επεκτάσεις αρχείων, κρυφά αρχεία, δευτερόλεπτα στο ρολόι, animations παραθύρων, συνδυασμός κουμπιών στο taskbar (πάντα / όταν γεμίσει / ποτέ με ετικέτες), επανεκκίνηση του Εξερευνητή με ένα κουμπί |
+| 🖼 Wallpaper slideshow | Αλλάζει το wallpaper από φάκελο κάθε N λεπτά (τυχαία ή με σειρά, όλοι οι τρόποι προσαρμογής), «Επόμενο τώρα», και επαναφορά του αρχικού wallpaper όταν το σβήσεις |
 | 🗂 Theme Manager | **Πλήρη θέματα** (εμφάνιση + εφέ + wallpaper): εφαρμογή με ένα κλικ, αποθήκευση του τρέχοντος ως θέμα, **εισαγωγή/εξαγωγή `.opsistheme`**, καθώς και λίστα των `.theme` των Windows |
 | ↩ Επαναφορά | Την πρώτη αλλαγή αποθηκεύεται αντίγραφο των αρχικών τιμών· το κουμπί «Επαναφορά» τις γυρνά όλες πίσω. Τα εφέ παραθύρων επαναφέρονται πλήρως όταν σταματά η εφαρμογή |
 
@@ -55,7 +57,7 @@
 
 ```powershell
 powershell -File build.ps1          # δοκιμές + standalone + plugin + zips + installer (Inno Setup 7)
-dotnet test OpsisAppearance.sln     # 72 unit tests
+dotnet test OpsisAppearance.sln     # 83 unit tests
 ```
 
 Απαιτείται: Windows 11, [.NET 10 SDK](https://dotnet.microsoft.com/download), [Inno Setup 7](https://jrsoftware.org/isdl.php).
