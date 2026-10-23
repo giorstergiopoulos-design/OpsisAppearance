@@ -12,7 +12,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-0078D6?logo=windows&logoColor=white" />
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" />
-  <img alt="Version" src="https://img.shields.io/badge/version-1.3.0-00B4D8" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-00B4D8" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
@@ -28,12 +28,22 @@
 | 🎨 Accent | 12 έτοιμα χρώματα, δικό σου χρώμα, ή **χρώμα από το wallpaper** (κυρίαρχο χρώμα της εικόνας) |
 | 🧱 Taskbar | Στοίχιση αριστερά/κέντρο, Αναζήτηση, Task View, Widgets, διαφάνειες, accent σε Start/taskbar/τίτλους |
 | 🪟 Εφέ παραθύρων | Χρωματιστό **border στο ενεργό παράθυρο**, **γωνίες** (στρογγυλές/μικρές/τετράγωνες), **σκούρες γραμμές τίτλου**, backdrop **Mica / Acrylic / Tabbed**, αυτόματη απόκρυψη taskbar |
+| 🫧 Εμφάνιση taskbar (στο πνεύμα του TranslucentTB) | Διαφανές / blur / acrylic / συμπαγές με χρώμα και ένταση, **διαφορετική κατάσταση όταν υπάρχει μεγιστοποιημένο παράθυρο ή ανοίγει το Start**, κάθε οθόνη. Χωρίς injection |
+| ⭕ Στρογγυλό / «επιπλέον» taskbar (στο πνεύμα του RoundedTB) | Ακτίνα και κενά γύρω-γύρω με περιοχή κοπής (`SetWindowRgn`), αυτόματη επανεφαρμογή όταν αλλάζει το μέγεθος |
+| 🪟 Mica για όλα τα παράθυρα (στο πνεύμα του Mica For Everyone) | Backdrop Mica/Acrylic/Tabbed, γωνίες, σκούρος τίτλος **και χρώμα γραμμής/κειμένου τίτλου**, με **λίστα εξαιρέσεων** ανά διεργασία |
+| 🛟 Ασφάλεια | **Σημείο επαναφοράς συστήματος** πριν από την πρώτη παρεμβατική ρύθμιση (θέλει διαχειριστή), **BackupVault** με SHA-256 για το αρχικό κάθε αρχείου πριν από οποιαδήποτε επέμβαση σε αρχείο, επαναφορά με ένα κουμπί |
 | 📁 Εξερευνητής και taskbar | Επεκτάσεις αρχείων, κρυφά αρχεία, δευτερόλεπτα στο ρολόι, animations παραθύρων, συνδυασμός κουμπιών στο taskbar (πάντα / όταν γεμίσει / ποτέ με ετικέτες), επανεκκίνηση του Εξερευνητή με ένα κουμπί |
 | 🖼 Wallpaper slideshow | Αλλάζει το wallpaper από φάκελο κάθε N λεπτά (τυχαία ή με σειρά, όλοι οι τρόποι προσαρμογής), «Επόμενο τώρα», και επαναφορά του αρχικού wallpaper όταν το σβήσεις |
 | 🗂 Theme Manager | **Πλήρη θέματα** (εμφάνιση + εφέ + wallpaper): εφαρμογή με ένα κλικ, αποθήκευση του τρέχοντος ως θέμα, **εισαγωγή/εξαγωγή `.opsistheme`**, καθώς και λίστα των `.theme` των Windows |
 | ↩ Επαναφορά | Την πρώτη αλλαγή αποθηκεύεται αντίγραφο των αρχικών τιμών· το κουμπί «Επαναφορά» τις γυρνά όλες πίσω. Τα εφέ παραθύρων επαναφέρονται πλήρως όταν σταματά η εφαρμογή |
 
 **Ελαφρύ για αδύναμα PC:** κανένα background thread, κανένα polling. Ένας timer 60 δευτ. μόνο όσο είναι ενεργό αυτόματο θέμα· τα εφέ παραθύρων χρησιμοποιούν ειδοποιήσεις των Windows (`SetWinEventHook`) και όχι έλεγχο σε βρόχο.
+
+### Τι ΔΕΝ περιλαμβάνεται (και γιατί)
+
+- **Windhawk και ExplorerBlurMica**: λειτουργούν με **injection DLL μέσα στο `explorer.exe`** / hooks σε αρχεία του συστήματος. Αυτό δεν υλοποιείται εδώ: ένα λάθος διακόπτει τον Explorer, τα antivirus το μπλοκάρουν και κάθε αναβάθμιση των Windows το χαλάει. Αν θέλεις τέτοια mods, χρησιμοποίησε το ίδιο το Windhawk — η επαναφορά του plugin (σημείο επαναφοράς, `BackupVault`) είναι έτοιμη να καλύψει μελλοντική επέμβαση σε αρχείο.
+- **TaskbarX**: τα Windows 11 έχουν ήδη κεντραρισμένο taskbar (υπάρχει διακόπτης «Κεντραρισμένο taskbar»)· οι κινούμενες μετατοπίσεις εικονιδίων του TaskbarX δεν υλοποιούνται.
+- Δεν υπάρχει πλήρης ισοδυναμία με τα παραπάνω προγράμματα· υλοποιούνται μόνο όσα αναφέρονται στον πίνακα.
 
 ### Εγκατάσταση
 
@@ -57,7 +67,7 @@
 
 ```powershell
 powershell -File build.ps1          # δοκιμές + standalone + plugin + zips + installer (Inno Setup 7)
-dotnet test OpsisAppearance.sln     # 83 unit tests
+dotnet test OpsisAppearance.sln     # 128 unit tests
 ```
 
 Απαιτείται: Windows 11, [.NET 10 SDK](https://dotnet.microsoft.com/download), [Inno Setup 7](https://jrsoftware.org/isdl.php).

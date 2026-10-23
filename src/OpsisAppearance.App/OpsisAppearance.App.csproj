@@ -10,7 +10,7 @@
     <AssemblyName>OpsisAppearance</AssemblyName>
     <RootNamespace>OpsisAppearance.App</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <Product>Opsis Appearance</Product>
     <Company>Opsis Team</Company>
     <Copyright>Copyright (c) 2026 Opsis Team</Copyright>

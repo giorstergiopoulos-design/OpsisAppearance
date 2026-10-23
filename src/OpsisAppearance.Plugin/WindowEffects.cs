@@ -16,8 +16,22 @@ public sealed class EffectsSettings
     public DarkTitleBars DarkTitle { get; set; } = DarkTitleBars.Off;
     public BackdropStyle Backdrop { get; set; } = BackdropStyle.Default;
     public bool AutoHideTaskbar { get; set; }
+    /// <summary>Χρώμα γραμμής τίτλου / κειμένου τίτλου (Windows 11 22H2+). null = προεπιλογή. Όπως το Mica For Everyone.</summary>
+    public int? CaptionRgb { get; set; }
+    public int? CaptionTextRgb { get; set; }
+    /// <summary>Διεργασίες που ΔΕΝ αγγίζονται (π.χ. "chrome.exe", "game.exe"). Συγκρίνεται χωρίς διάκριση πεζών/κεφαλαίων· το «.exe» είναι προαιρετικό.</summary>
+    public List<string> ExcludedProcesses { get; set; } = new();
 
-    public bool AnyWindowEffect => ActiveBorder || Corners != CornerStyle.Default || DarkTitle != DarkTitleBars.Off || Backdrop != BackdropStyle.Default;
+    public bool AnyWindowEffect => ActiveBorder || Corners != CornerStyle.Default || DarkTitle != DarkTitleBars.Off || Backdrop != BackdropStyle.Default || CaptionRgb != null || CaptionTextRgb != null;
+
+    public static string NormalizeProcess(string name)
+    {
+        var n = (name ?? "").Trim().Trim('"').ToLowerInvariant();
+        return n.Length == 0 ? "" : n.EndsWith(".exe") ? n : n + ".exe";
+    }
+
+    public bool IsExcluded(string? processName) =>
+        !string.IsNullOrEmpty(processName) && ExcludedProcesses.Any(e => NormalizeProcess(e) == NormalizeProcess(processName));
 }
 
 /// <summary>Ό,τι χρειάζεται η μηχανή από το σύστημα — interface ώστε να δοκιμάζεται με ψεύτικα παράθυρα.</summary>
@@ -31,6 +45,10 @@ public interface IDwmWindows
     void SetDarkTitle(IntPtr hwnd, bool dark);
     void SetBackdrop(IntPtr hwnd, int type);                   // 0 auto, 1 none, 2 mica, 3 acrylic, 4 tabbed
     IntPtr Foreground { get; }
+    /// <summary>Όνομα εκτελέσιμου του παραθύρου (π.χ. "chrome.exe"), ή null αν δεν είναι γνωστό.</summary>
+    string? ProcessName(IntPtr hwnd) => null;
+    void SetCaptionColor(IntPtr hwnd, int colorRef) { }        // 0x00BBGGRR ή 0xFFFFFFFF = προεπιλογή
+    void SetCaptionTextColor(IntPtr hwnd, int colorRef) { }
 }
 
 public interface ITaskbarControl
@@ -80,6 +98,9 @@ public sealed class WindowEffectsEngine
             if (old.DarkTitle != DarkTitleBars.Off && s.DarkTitle == DarkTitleBars.Off) _dwm.SetDarkTitle(h, _systemIsDark());
             if (old.Backdrop != BackdropStyle.Default && s.Backdrop == BackdropStyle.Default) _dwm.SetBackdrop(h, 0);
             if (old.ActiveBorder && !s.ActiveBorder) _dwm.SetBorderColor(h, ColorDefault);
+            if (old.CaptionRgb != null && s.CaptionRgb == null) _dwm.SetCaptionColor(h, ColorDefault);
+            if (old.CaptionTextRgb != null && s.CaptionTextRgb == null) _dwm.SetCaptionTextColor(h, ColorDefault);
+            if (s.ExcludedProcesses.Count > 0 && s.IsExcluded(_dwm.ProcessName(h))) { RestoreWindow(h, s); _touched.Remove(h); }     // μπήκε στη λίστα εξαιρέσεων: γυρνά στο αρχικό
         }
         if (!s.ActiveBorder) _activeBordered = IntPtr.Zero;
 
@@ -95,7 +116,14 @@ public sealed class WindowEffectsEngine
     {
         if (h == IntPtr.Zero || !_dwm.IsEligible(h)) return;
         var s = Settings;
+        if (s.ExcludedProcesses.Count > 0 && s.IsExcluded(_dwm.ProcessName(h)))
+        {
+            if (_touched.Remove(h)) RestoreWindow(h, s);
+            return;
+        }
         bool touched = false;
+        if (s.CaptionRgb is int cap) { _dwm.SetCaptionColor(h, ToColorRef(cap)); touched = true; }
+        if (s.CaptionTextRgb is int capText) { _dwm.SetCaptionTextColor(h, ToColorRef(capText)); touched = true; }
         if (s.Corners != CornerStyle.Default)
         {
             _dwm.SetCorner(h, s.Corners switch { CornerStyle.Round => 2, CornerStyle.RoundSmall => 3, CornerStyle.Square => 1, _ => 0 });
@@ -119,13 +147,24 @@ public sealed class WindowEffectsEngine
     {
         if (!Settings.ActiveBorder) return;
         if (_activeBordered != IntPtr.Zero && _activeBordered != h && _dwm.IsAlive(_activeBordered)) _dwm.SetBorderColor(_activeBordered, ColorDefault);
-        if (h != IntPtr.Zero && _dwm.IsEligible(h))
+        if (h != IntPtr.Zero && _dwm.IsEligible(h) && !Settings.IsExcluded(_dwm.ProcessName(h)))
         {
             _dwm.SetBorderColor(h, BorderColorRef);
             _touched.Add(h);
             _activeBordered = h;
         }
         else _activeBordered = IntPtr.Zero;
+    }
+
+    private void RestoreWindow(IntPtr h, EffectsSettings s)
+    {
+        if (!_dwm.IsAlive(h)) return;
+        _dwm.SetCorner(h, 0);
+        _dwm.SetBorderColor(h, ColorDefault);
+        _dwm.SetBackdrop(h, 0);
+        _dwm.SetCaptionColor(h, ColorDefault);
+        _dwm.SetCaptionTextColor(h, ColorDefault);
+        if (s.DarkTitle != DarkTitleBars.Off) _dwm.SetDarkTitle(h, _systemIsDark());
     }
 
     private void ApplyTaskbar(bool autoHide)
@@ -145,14 +184,7 @@ public sealed class WindowEffectsEngine
     /// <summary>Επαναφέρει ΟΛΑ τα παράθυρα (και το taskbar) στην προεπιλογή. Καλείται όταν σταματά το plugin.</summary>
     public void RestoreAll()
     {
-        foreach (var h in _touched.ToList())
-        {
-            if (!_dwm.IsAlive(h)) continue;
-            _dwm.SetCorner(h, 0);
-            _dwm.SetBorderColor(h, ColorDefault);
-            _dwm.SetBackdrop(h, 0);
-            if (Settings.DarkTitle != DarkTitleBars.Off) _dwm.SetDarkTitle(h, _systemIsDark());
-        }
+        foreach (var h in _touched.ToList()) RestoreWindow(h, Settings);
         _touched.Clear();
         _activeBordered = IntPtr.Zero;
         ApplyTaskbar(false);
@@ -211,6 +243,25 @@ public sealed class RealDwmWindows : IDwmWindows
     public void SetBorderColor(IntPtr h, int colorRef) => Set(h, 34, colorRef);
     public void SetDarkTitle(IntPtr h, bool dark) => Set(h, 20, dark ? 1 : 0);
     public void SetBackdrop(IntPtr h, int type) => Set(h, 38, type);
+    public void SetCaptionColor(IntPtr h, int colorRef) => Set(h, 35, colorRef);          // DWMWA_CAPTION_COLOR
+    public void SetCaptionTextColor(IntPtr h, int colorRef) => Set(h, 36, colorRef);      // DWMWA_TEXT_COLOR
+
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    private readonly Dictionary<uint, string?> _names = new();
+    public string? ProcessName(IntPtr h)
+    {
+        try
+        {
+            GetWindowThreadProcessId(h, out uint pid);
+            if (pid == 0) return null;
+            if (_names.TryGetValue(pid, out var cached)) return cached;
+            string? name = null;
+            try { using var p = System.Diagnostics.Process.GetProcessById((int)pid); name = p.ProcessName + ".exe"; } catch (Exception) { }
+            if (_names.Count > 512) _names.Clear();
+            return _names[pid] = name;
+        }
+        catch (Exception) { return null; }
+    }
 }
 
 public sealed class RealTaskbar : ITaskbarControl

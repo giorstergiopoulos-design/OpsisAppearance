@@ -25,11 +25,21 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
     private ThemeApplier _applier = null!;
     private WinEventWatcher? _watcher;
     private readonly IWallpaperApi _wallpaperApi;
-    private System.Windows.Forms.Timer? _slideTimer;
+    private System.Windows.Forms.Timer? _slideTimer, _barTimer;
+    private readonly TaskbarLookEngine _taskbarLook;
+    private readonly TaskbarShapeEngine _taskbarShape;
+    private readonly IRestorePointService _restorePoints;
+    private readonly BackupVault _vault;
 
     public OpsisAppearancePlugin() : this(new CurrentUserRegistry()) { }
-    internal OpsisAppearancePlugin(IRegistryStore registry, IDwmWindows? dwm = null, ITaskbarControl? taskbar = null, IWallpaperApi? wallpaper = null, string? themesRoot = null)
+    internal OpsisAppearancePlugin(IRegistryStore registry, IDwmWindows? dwm = null, ITaskbarControl? taskbar = null, IWallpaperApi? wallpaper = null, string? themesRoot = null,
+        ITaskbarSurface? surface = null, IRestorePointService? restorePoints = null, string? vaultRoot = null)
     {
+        var tbSurface = surface ?? new RealTaskbarSurface();
+        _taskbarLook = new TaskbarLookEngine(tbSurface);
+        _taskbarShape = new TaskbarShapeEngine(tbSurface);
+        _restorePoints = restorePoints ?? new RealRestorePointService();
+        _vault = new BackupVault(vaultRoot ?? BackupVault.DefaultRoot);
         if (themesRoot != null) _themes = new ThemeLibrary(themesRoot);
         _wallpaperApi = wallpaper ?? new RealWallpaper();
         _engine = new AppearanceEngine(registry);
@@ -41,7 +51,7 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     public string Id => "giorstergiopoulos.opsisappearance";
     public string Name => "Opsis Appearance";
-    public string Version => "1.3.0";
+    public string Version => "1.4.0";
 
     public void Start()
     {
@@ -50,17 +60,20 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
         UpdateTimer();
         UpdateSlideTimer();
         ApplyEffects();
+        ApplyTaskbar(askForRestorePoint: false);       // ό,τι ήταν ήδη ενεργό εφαρμόζεται ξανά· ΔΕΝ ζητά νέο σημείο επαναφοράς σε κάθε εκκίνηση
     }
 
     public void Stop()
     {
+        _barTimer?.Stop(); _barTimer?.Dispose(); _barTimer = null;
+        try { _taskbarLook.RestoreAll(); _taskbarShape.RestoreAll(); } catch (Exception) { }     // το taskbar γυρνά ΠΑΝΤΑ στα Windows όταν σταματά το plugin
         _timer?.Stop(); _timer?.Dispose(); _timer = null;
         _slideTimer?.Stop(); _slideTimer?.Dispose(); _slideTimer = null;
         _watcher?.Dispose(); _watcher = null;
         try { _effects.RestoreAll(); } catch (Exception) { }     // τα εφέ ζουν μόνο όσο τρέχει το plugin: επαναφορά πλήρης
     }
-    public void Pause() { _timer?.Stop(); _slideTimer?.Stop(); }
-    public void Resume() { UpdateTimer(); UpdateSlideTimer(); ApplySchedule(force: false); }
+    public void Pause() { _timer?.Stop(); _slideTimer?.Stop(); _barTimer?.Stop(); }
+    public void Resume() { UpdateTimer(); UpdateSlideTimer(); UpdateBarTimer(); ApplySchedule(force: false); }
     public void Refresh() { _settings = _store.Load(); ApplySchedule(force: true); UpdateTimer(); UpdateSlideTimer(); _page?.RefreshAll(); }
     public void SetMode(string mode) { }
     public void SetPosition(string position) { }
@@ -151,6 +164,51 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     internal void SaveSettings() { _store.Save(_settings); UpdateTimer(); UpdateSlideTimer(); ApplySchedule(force: true); }
 
+    // ---- taskbar look / shape + safety ---------------------------------------------------------------------------
+
+    internal BackupVault Vault => _vault;
+
+    /// <summary>Εφαρμόζει εμφάνιση/σχήμα taskbar. Η ΠΡΩΤΗ φορά που ενεργοποιείται κάτι παρεμβατικό ζητά σημείο επαναφοράς (αν έχει δικαιώματα) — ποτέ δεν μπλοκάρει.</summary>
+    internal RestorePointResult? ApplyTaskbar(bool askForRestorePoint)
+    {
+        RestorePointResult? rp = null;
+        try
+        {
+            bool wantsAny = _settings.TaskbarLook.Enabled || _settings.TaskbarShape.Enabled;
+            if (wantsAny && askForRestorePoint)
+            {
+                rp = InvasiveGuard.BeforeInvasiveChange(_settings.Safety, _restorePoints, "Opsis Appearance: taskbar look", DateTime.UtcNow);
+                _store.Save(_settings);
+            }
+            _taskbarLook.Apply(_settings.TaskbarLook);
+            _taskbarShape.Apply(_settings.TaskbarShape);
+        }
+        catch (Exception) { /* ένα taskbar που δεν αποκρίνεται δεν πρέπει να ρίξει το plugin */ }
+        UpdateBarTimer();
+        return rp;
+    }
+
+    private void UpdateBarTimer()
+    {
+        bool need = _taskbarLook.NeedsTimer || _settings.TaskbarShape.Enabled || _settings.TaskbarLook.Enabled;
+        if (!need) { _barTimer?.Stop(); return; }
+        if (_barTimer == null)
+        {
+            _barTimer = new System.Windows.Forms.Timer { Interval = 800 };
+            _barTimer.Tick += (_, _) => { try { _taskbarLook.Tick(); _taskbarShape.Tick(); } catch (Exception) { } };
+        }
+        _barTimer.Start();
+    }
+
+    internal RestorePointResult CreateRestorePointNow()
+    {
+        var r = InvasiveGuard.BeforeInvasiveChange(_settings.Safety, _restorePoints, "Opsis Appearance: manual restore point", DateTime.UtcNow, force: true)!;
+        _store.Save(_settings);
+        return r;
+    }
+
+    internal bool IsAdministrator => _restorePoints.IsAdministrator;
+
     // ---- wallpaper slideshow -------------------------------------------------------------------------------------
 
     private void UpdateSlideTimer()
@@ -201,6 +259,14 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     internal void RestoreOriginal()
     {
+        // Το taskbar (εμφάνιση + σχήμα) και τα εφέ παραθύρων γυρνούν στα Windows και μένουν ΑΝΕΝΕΡΓΑ στις ρυθμίσεις.
+        try
+        {
+            _settings.TaskbarLook = new TaskbarLookSettings(); _settings.TaskbarShape = new TaskbarShapeSettings();
+            _taskbarLook.RestoreAll(); _taskbarShape.RestoreAll();
+            _store.Save(_settings); UpdateBarTimer();
+        }
+        catch (Exception) { }
         var backup = _store.LoadBackup();
         if (backup != null) _engine.Restore(backup);   // Restore skips values it cannot write instead of throwing
     }
@@ -281,6 +347,13 @@ internal sealed class AppearancePage : UserControl
     private readonly ComboBox _combine = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 230 }, _slideStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
     private readonly NumericUpDown _slideMin = new() { Minimum = 1, Maximum = 1440, Width = 70, Value = 30 };
     private readonly Button _slideFolder = new(), _slideNext = new(), _restartExplorer = new();
+    // TranslucentTB / RoundedTB / Mica For Everyone / ασφάλεια
+    private readonly Label _hBar = new(), _hEvery = new(), _hSafety = new(), _tBarN = new(), _tBarM = new(), _tBarS = new(), _tBarOp = new(), _tShapeR = new(), _tShapeX = new(), _tShapeY = new(), _tExclude = new(), _barNote = new(), _everyNote = new(), _safetyInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) };
+    private readonly CheckBox _barOn = new(), _shapeOn = new(), _rpCheck = new();
+    private readonly ComboBox _barNormal = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _barMax = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _barStart = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly NumericUpDown _barOpacity = new() { Minimum = 0, Maximum = 100, Width = 60, Value = 60 }, _shapeRadius = new() { Minimum = 0, Maximum = 40, Width = 56, Value = 12 }, _shapeMx = new() { Minimum = 0, Maximum = 200, Width = 60, Value = 8 }, _shapeMy = new() { Minimum = 0, Maximum = 60, Width = 56, Value = 4 };
+    private readonly Button _barTint = new(), _capColor = new(), _capText = new(), _capClear = new(), _rpNow = new(), _openBackups = new();
+    private readonly TextBox _exclude = new() { Width = 420 };
     private readonly Label _tLight = new(), _tDark = new(), _tLat = new(), _tLon = new(), _tOff = new(), _tSafety = new();
 
     private static readonly int[] SwatchColors =
@@ -293,13 +366,14 @@ internal sealed class AppearancePage : UserControl
         _p = plugin; _pal = pal; _greek = greek;
         DoubleBuffered = true; Dock = DockStyle.Fill;
         Controls.Add(_flow);
-        _headings.AddRange(new[] { _hSchedule, _hAccent, _hTaskbar, _hLooks, _hEffects, _hWinThemes, _hShell, _hSlide });
-        _texts.AddRange(new[] { _tLight, _tDark, _tLat, _tLon, _tOff, _tSafety, _tCorners, _tTitle, _tBackdrop, _tCombine, _tSlideEvery, _tSlideStyle, _slideInfo, _tShellNote });
+        _headings.AddRange(new[] { _hBar, _hEvery, _hSafety, _hSchedule, _hAccent, _hTaskbar, _hLooks, _hEffects, _hWinThemes, _hShell, _hSlide });
+        _texts.AddRange(new[] { _tBarN, _tBarM, _tBarS, _tBarOp, _tShapeR, _tShapeX, _tShapeY, _tExclude, _barNote, _everyNote, _safetyInfo, _tLight, _tDark, _tLat, _tLon, _tOff, _tSafety, _tCorners, _tTitle, _tBackdrop, _tCombine, _tSlideEvery, _tSlideStyle, _slideInfo, _tShellNote });
         _radios.AddRange(new[] { _manual, _autoSun, _autoFixed });
-        _checks.AddRange(new[] { _transp, _accentSurf, _centered, _search, _taskView, _widgets, _borderCheck, _hideTaskbar, _fileExt, _hiddenFiles, _clockSecs, _animations, _slideOn, _slideShuffle });
-        _buttons.AddRange(new[] { _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
+        _checks.AddRange(new[] { _barOn, _shapeOn, _rpCheck, _transp, _accentSurf, _centered, _search, _taskView, _widgets, _borderCheck, _hideTaskbar, _fileExt, _hiddenFiles, _clockSecs, _animations, _slideOn, _slideShuffle });
+        _buttons.AddRange(new[] { _barTint, _capColor, _capText, _capClear, _rpNow, _openBackups, _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
         foreach (var h in _headings) { h.AutoSize = true; h.Font = new Font("Segoe UI Semibold", 12f); h.Margin = new Padding(0, 14, 0, 4); }
         foreach (var t in _texts) { t.AutoSize = true; t.Margin = new Padding(0, 6, 4, 0); }
+        _barNote.MaximumSize = new Size(760, 0); _everyNote.MaximumSize = new Size(760, 0);
         _tShellNote.MaximumSize = new Size(760, 0); _slideInfo.Margin = new Padding(0, 4, 0, 6);
         _tSafety.MaximumSize = new Size(760, 0); _tWinThemes.MaximumSize = new Size(760, 0); _themeInfo.Margin = new Padding(0, 4, 0, 6);
 
@@ -320,6 +394,20 @@ internal sealed class AppearancePage : UserControl
         _flow.Controls.Add(Row(_tCorners, _corners, _tTitle, _titleBars));
         _flow.Controls.Add(Row(_tBackdrop, _backdrop));
         _flow.Controls.Add(Row(_hideTaskbar));
+        _flow.Controls.Add(_hBar);
+        _flow.Controls.Add(Row(_barOn));
+        _flow.Controls.Add(Row(_tBarN, _barNormal, _tBarM, _barMax, _tBarS, _barStart));
+        _flow.Controls.Add(Row(_barTint, _tBarOp, _barOpacity));
+        _flow.Controls.Add(Row(_shapeOn, _tShapeR, _shapeRadius, _tShapeX, _shapeMx, _tShapeY, _shapeMy));
+        _flow.Controls.Add(_barNote);
+        _flow.Controls.Add(_hEvery);
+        _flow.Controls.Add(Row(_tExclude, _exclude));
+        _flow.Controls.Add(Row(_capColor, _capText, _capClear));
+        _flow.Controls.Add(_everyNote);
+        _flow.Controls.Add(_hSafety);
+        _flow.Controls.Add(Row(_rpCheck));
+        _flow.Controls.Add(Row(_rpNow, _openBackups));
+        _flow.Controls.Add(_safetyInfo);
         _flow.Controls.Add(_hShell);
         _flow.Controls.Add(Row(_fileExt, _hiddenFiles, _clockSecs, _animations));
         _flow.Controls.Add(Row(_tCombine, _combine, _restartExplorer));
@@ -371,6 +459,53 @@ internal sealed class AppearancePage : UserControl
         _search.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowSearch = _search.Checked }));
         _taskView.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowTaskView = _taskView.Checked }));
         _widgets.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowWidgets = _widgets.Checked }));
+        void SaveBar()
+        {
+            if (_loading) return;
+            var st = _p.Settings.TaskbarLook;
+            st.Enabled = _barOn.Checked;
+            st.Normal = (TaskbarState)_barNormal.SelectedIndex; st.Maximized = (TaskbarState)_barMax.SelectedIndex; st.StartOpen = (TaskbarState)_barStart.SelectedIndex;
+            st.OpacityPercent = (int)_barOpacity.Value;
+            var sh = _p.Settings.TaskbarShape;
+            sh.Enabled = _shapeOn.Checked; sh.Radius = (int)_shapeRadius.Value; sh.MarginX = (int)_shapeMx.Value; sh.MarginY = (int)_shapeMy.Value;
+            _p.Settings.Safety.RestorePointBeforeInvasive = _rpCheck.Checked;
+            _p.Store.Save(_p.Settings);
+            try { _p.Backup(); } catch (Exception) { }
+            var rp = _p.ApplyTaskbar(askForRestorePoint: true);
+            if (rp != null && rp.Status != RestorePointStatus.Created) _safetyInfo.Text = (_greek ? "Σημείο επαναφοράς: " : "Restore point: ") + rp.Message;
+            RefreshAll();
+        }
+        _barOn.Click += (_, _) => SaveBar(); _shapeOn.Click += (_, _) => SaveBar(); _rpCheck.Click += (_, _) => SaveBar();
+        foreach (var cb in new[] { _barNormal, _barMax, _barStart }) cb.SelectedIndexChanged += (_, _) => SaveBar();
+        foreach (var n in new[] { _barOpacity, _shapeRadius, _shapeMx, _shapeMy }) n.ValueChanged += (_, _) => SaveBar();
+        _barTint.Click += (_, _) =>
+        {
+            using var dlg = new ColorDialog { FullOpen = true, Color = Color.FromArgb(255, Color.FromArgb(_p.Settings.TaskbarLook.TintRgb)) };
+            if (dlg.ShowDialog(this) == DialogResult.OK) { _p.Settings.TaskbarLook.TintRgb = (dlg.Color.R << 16) | (dlg.Color.G << 8) | dlg.Color.B; SaveBar(); }
+        };
+        _exclude.Leave += (_, _) =>
+        {
+            if (_loading) return;
+            ChangeEffects(e => e.ExcludedProcesses = _exclude.Text.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(EffectsSettings.NormalizeProcess).Where(x => x.Length > 0).Distinct().ToList());
+        };
+        _capColor.Click += (_, _) =>
+        {
+            using var dlg = new ColorDialog { FullOpen = true };
+            if (dlg.ShowDialog(this) == DialogResult.OK) ChangeEffects(e => e.CaptionRgb = (dlg.Color.R << 16) | (dlg.Color.G << 8) | dlg.Color.B);
+        };
+        _capText.Click += (_, _) =>
+        {
+            using var dlg = new ColorDialog { FullOpen = true };
+            if (dlg.ShowDialog(this) == DialogResult.OK) ChangeEffects(e => e.CaptionTextRgb = (dlg.Color.R << 16) | (dlg.Color.G << 8) | dlg.Color.B);
+        };
+        _capClear.Click += (_, _) => ChangeEffects(e => { e.CaptionRgb = null; e.CaptionTextRgb = null; });
+        _rpNow.Click += (_, _) =>
+        {
+            var r = _p.CreateRestorePointNow();
+            MessageBox.Show(this, r.Message, "Opsis Appearance", MessageBoxButtons.OK, r.Status == RestorePointStatus.Created ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            RefreshAll();
+        };
+        _openBackups.Click += (_, _) => { try { Directory.CreateDirectory(_p.Vault.Root); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_p.Vault.Root) { UseShellExecute = true }); } catch (Exception) { } };
         _fileExt.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowFileExtensions = _fileExt.Checked }));
         _hiddenFiles.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowHiddenFiles = _hiddenFiles.Checked }));
         _clockSecs.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ClockSeconds = _clockSecs.Checked }));
@@ -639,6 +774,21 @@ internal sealed class AppearancePage : UserControl
         void Fill(ComboBox cb, string[] items) { int i = cb.SelectedIndex; cb.Items.Clear(); cb.Items.AddRange(items); cb.SelectedIndex = Math.Max(0, i); }
         _loading = true; Fill(_corners, cs); Fill(_titleBars, ds); Fill(_backdrop, bs); _loading = false;
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
+        _hBar.Text = T("Εμφάνιση taskbar (διαφάνεια, χρώμα, στρογγυλά άκρα)", "Taskbar look (transparency, colour, rounded edges)");
+        _barOn.Text = T("Εφαρμογή εμφάνισης taskbar", "Apply a taskbar look");
+        _tBarN.Text = T("Κανονικά", "Normal"); _tBarM.Text = T("Με μεγιστοποιημένο παράθυρο", "With a maximized window"); _tBarS.Text = T("Όταν ανοίγει το Start", "When Start is open");
+        _barTint.Text = T("Χρώμα…", "Colour…"); _tBarOp.Text = T("Ένταση χρώματος %", "Colour strength %");
+        _shapeOn.Text = T("Στρογγυλεμένο / «επιπλέον» taskbar", "Rounded / floating taskbar"); _tShapeR.Text = T("Ακτίνα", "Radius"); _tShapeX.Text = T("Κενό πλάι", "Side gap"); _tShapeY.Text = T("Κενό πάνω/κάτω", "Top/bottom gap");
+        _barNote.Text = T("Όπως το TranslucentTB και το RoundedTB, με τεκμηριωμένα API των Windows — χωρίς injection, χωρίς αλλαγή αρχείων· ισχύει όσο τρέχει το plugin και γυρνά αυτόματα στα Windows όταν σταματήσει ή πατήσεις «Επαναφορά». Στα Windows 11 25H2 το αποτέλεσμα εξαρτάται από την έκδοση του Explorer.",
+            "Like TranslucentTB and RoundedTB, using documented Windows APIs — no injection, no file changes; it lasts while the plugin runs and returns to Windows by itself when it stops or when you press Restore. On Windows 11 25H2 the result depends on the Explorer build.");
+        _hEvery.Text = T("Mica για όλα τα παράθυρα (εξαιρέσεις και χρώματα τίτλου)", "Mica for every window (exclusions and title colours)");
+        _tExclude.Text = T("Εξαιρέσεις (π.χ. chrome, game.exe)", "Exclude (e.g. chrome, game.exe)");
+        _capColor.Text = T("Χρώμα γραμμής τίτλου…", "Title bar colour…"); _capText.Text = T("Χρώμα κειμένου τίτλου…", "Title text colour…"); _capClear.Text = T("Καθαρισμός χρωμάτων", "Clear colours");
+        _everyNote.Text = T("Το backdrop (Mica / Acrylic / Tabbed), οι γωνίες και το σκούρο τίτλο εφαρμόζονται στα παραπάνω «Εφέ παραθύρων» σε ΟΛΑ τα παράθυρα εκτός από τις διεργασίες που γράφεις εδώ.",
+            "The backdrop (Mica / Acrylic / Tabbed), corners and dark title bars from \"Window effects\" above are applied to ALL windows except the processes you list here.");
+        _hSafety.Text = T("Ασφάλεια και επαναφορά", "Safety and restore");
+        _rpCheck.Text = T("Σημείο επαναφοράς συστήματος πριν από την πρώτη παρεμβατική ρύθμιση (θέλει δικαιώματα διαχειριστή)", "System restore point before the first invasive setting (needs administrator rights)");
+        _rpNow.Text = T("Δημιουργία σημείου επαναφοράς τώρα", "Create a restore point now"); _openBackups.Text = T("Φάκελος αντιγράφων αρχείων", "File backups folder");
         _hShell.Text = T("Εξερευνητής και taskbar (συμπεριφορά)", "Explorer & taskbar (behaviour)");
         _fileExt.Text = T("Εμφάνιση επεκτάσεων αρχείων", "Show file extensions"); _hiddenFiles.Text = T("Εμφάνιση κρυφών αρχείων", "Show hidden files");
         _clockSecs.Text = T("Δευτερόλεπτα στο ρολόι", "Seconds in the clock"); _animations.Text = T("Animations παραθύρων", "Window animations");
@@ -650,6 +800,8 @@ internal sealed class AppearancePage : UserControl
         _slideFolder.Text = T("Φάκελος…", "Folder…"); _slideNext.Text = T("Επόμενο τώρα", "Next now");
         _tSlideEvery.Text = T("κάθε (λεπτά)", "every (min)"); _tSlideStyle.Text = T("Προσαρμογή", "Fit");
         _loading = true;
+        foreach (var cb in new[] { _barNormal, _barMax, _barStart })
+        { int i = cb.SelectedIndex; cb.Items.Clear(); cb.Items.AddRange(greek ? new[] { "Προεπιλογή Windows", "Διαφανές", "Blur", "Acrylic", "Συμπαγές" } : new[] { "Windows default", "Clear", "Blur", "Acrylic", "Solid" }); cb.SelectedIndex = Math.Max(0, i); }
         { int i = _combine.SelectedIndex; _combine.Items.Clear(); _combine.Items.AddRange(greek ? new[] { "Πάντα συνδυασμός", "Συνδυασμός όταν γεμίσει", "Ποτέ (με ετικέτες)" } : new[] { "Always combine", "Combine when full", "Never (with labels)" }); _combine.SelectedIndex = Math.Max(0, i); }
         { int i = _slideStyle.SelectedIndex; _slideStyle.Items.Clear(); _slideStyle.Items.AddRange(greek ? new[] { "Γέμισμα", "Προσαρμογή", "Έκταση", "Πλακίδια", "Κέντρο", "Span" } : new[] { "Fill", "Fit", "Stretch", "Tile", "Center", "Span" }); _slideStyle.SelectedIndex = Math.Max(0, i); }
         _loading = false;
@@ -677,14 +829,14 @@ internal sealed class AppearancePage : UserControl
         foreach (var r in _radios) { r.ForeColor = p.Text; r.BackColor = p.Bg; }
         foreach (var b in _buttons) StyleButton(b);
         _themeList.Invalidate();
-        foreach (var cb in new ComboBox[] { _corners, _titleBars, _backdrop, _winThemes, _combine, _slideStyle })
+        foreach (var cb in new ComboBox[] { _corners, _titleBars, _backdrop, _winThemes, _combine, _slideStyle, _barNormal, _barMax, _barStart })
         {
             cb.BackColor = p.Surface; cb.ForeColor = p.Text; cb.FlatStyle = FlatStyle.Flat;
             cb.DrawMode = DrawMode.OwnerDrawFixed; cb.ItemHeight = 20;
             cb.DrawItem -= DrawComboItem; cb.DrawItem += DrawComboItem;      // dark list + dark face instead of the white system one
         }
-        foreach (var t in new TextBox[] { _lightAt, _darkAt }) { t.BackColor = p.Surface; t.ForeColor = p.Text; }
-        foreach (var n in new NumericUpDown[] { _lat, _lon, _offset, _slideMin }) { n.BackColor = p.Surface; n.ForeColor = p.Text; }
+        foreach (var t in new TextBox[] { _lightAt, _darkAt, _exclude }) { t.BackColor = p.Surface; t.ForeColor = p.Text; }
+        foreach (var n in new NumericUpDown[] { _lat, _lon, _offset, _slideMin, _barOpacity, _shapeRadius, _shapeMx, _shapeMy }) { n.BackColor = p.Surface; n.ForeColor = p.Text; }
         foreach (Control c in _flow.Controls) if (c is FlowLayoutPanel row) row.BackColor = p.Bg;
     }
 
@@ -714,6 +866,16 @@ internal sealed class AppearancePage : UserControl
         _slideInfo.Text = string.IsNullOrWhiteSpace(sl.Folder)
             ? (_greek ? "Διάλεξε φάκελο με εικόνες (png, jpg, bmp)." : "Choose a folder with pictures (png, jpg, bmp).")
             : $"{sl.Folder}  ·  {pics} " + (_greek ? "εικόνες" : "pictures") + (sl.LastFile != null ? $"  ·  {(_greek ? "τελευταία" : "last")}: {Path.GetFileName(sl.LastFile)}" : "");
+        var tl = s.TaskbarLook; var ts = s.TaskbarShape;
+        _barOn.Checked = tl.Enabled; _barNormal.SelectedIndex = (int)tl.Normal; _barMax.SelectedIndex = (int)tl.Maximized; _barStart.SelectedIndex = (int)tl.StartOpen;
+        _barOpacity.Value = Math.Clamp(tl.OpacityPercent, 0, 100); _barTint.BackColor = Color.FromArgb(255, Color.FromArgb(tl.TintRgb));
+        _shapeOn.Checked = ts.Enabled; _shapeRadius.Value = Math.Clamp(ts.Radius, 0, 40); _shapeMx.Value = Math.Clamp(ts.MarginX, 0, 200); _shapeMy.Value = Math.Clamp(ts.MarginY, 0, 60);
+        _exclude.Text = string.Join(", ", s.Effects.ExcludedProcesses);
+        _rpCheck.Checked = s.Safety.RestorePointBeforeInvasive;
+        int vaultCount = 0; try { vaultCount = _p.Vault.All().Count; } catch (Exception) { }
+        _safetyInfo.Text = (s.Safety.LastStatus != null ? (_greek ? "Τελευταίο σημείο επαναφοράς: " : "Last restore point: ") + s.Safety.LastAttemptUtc?.ToLocalTime().ToString("g") + " — " + s.Safety.LastStatus + "   ·   " : "")
+            + (_greek ? $"Αντίγραφα αρχείων: {vaultCount}. Το plugin δεν τροποποιεί αρχεία των Windows· κάθε μελλοντική τέτοια επέμβαση περνά πρώτα από αντίγραφο του αρχικού." : $"File backups: {vaultCount}. The plugin does not modify Windows files; any such change in the future goes through a backup of the original first.")
+            + (_p.IsAdministrator ? "" : (_greek ? "   (Χωρίς δικαιώματα διαχειριστή δεν δημιουργείται σημείο επαναφοράς.)" : "   (Without administrator rights no restore point can be created.)"));
         _restore.Enabled = _p.Store.HasBackup;
         var fx = s.Effects;
         _borderCheck.Checked = fx.ActiveBorder; _hideTaskbar.Checked = fx.AutoHideTaskbar;

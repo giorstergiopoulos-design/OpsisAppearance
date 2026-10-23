@@ -93,6 +93,9 @@ public sealed class AppearanceSettings
     public int SunOffsetMinutes { get; set; } = 0;      // + later, - earlier
     public EffectsSettings Effects { get; set; } = new();     // εφέ παραθύρων (βλ. WindowEffects.cs)
     public SlideshowSettings Slideshow { get; set; } = new(); // wallpaper slideshow (βλ. Slideshow.cs)
+    public TaskbarLookSettings TaskbarLook { get; set; } = new();    // TranslucentTB-style (βλ. TaskbarLook.cs)
+    public TaskbarShapeSettings TaskbarShape { get; set; } = new();  // RoundedTB-style
+    public SafetySettings Safety { get; set; } = new();              // σημείο επαναφοράς / αντίγραφα ασφαλείας (βλ. Safety.cs)
 }
 
 /// <summary>Reads/writes the Windows appearance values. Everything is HKCU and reversible (see <see cref="Snapshot"/>).</summary>
