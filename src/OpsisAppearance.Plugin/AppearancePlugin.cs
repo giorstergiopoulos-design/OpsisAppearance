@@ -79,6 +79,9 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
     public void SetPosition(string position) { }
     public void SetHardwareProfile(string tier) { }
 
+    /// <summary>For the stand-alone window: palette background and a title bar in the colours of the page (follows later theme changes).</summary>
+    public void StyleWindow(Form f) => OpsisSkin.StyleWindow(f);
+
     public void SetLanguage(string code) { _greek = code == "el"; _page?.ApplyLanguage(_greek); }
 
     public void SetTheme(bool dark, int background, int surface, int border, int text, int textMuted, int accent, double opacity)
@@ -318,42 +321,42 @@ internal sealed class AppearancePage : UserControl
 
     private readonly FlowLayoutPanel _flow = new() { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Padding = new Padding(16, 12, 16, 12) };
     private readonly List<Label> _headings = new(), _texts = new();
-    private readonly List<Button> _buttons = new();
-    private readonly List<CheckBox> _checks = new();
-    private readonly List<RadioButton> _radios = new();
+    private readonly List<OpsisButton> _buttons = new();
+    private readonly List<OpsisCheck> _checks = new();
+    private readonly List<OpsisRadio> _radios = new();
 
     private readonly Label _status = new() { AutoSize = true, Font = new Font("Segoe UI Semibold", 11f), MaximumSize = new Size(760, 0) };
-    private readonly RadioButton _manual = new() { AutoSize = true }, _autoSun = new() { AutoSize = true }, _autoFixed = new() { AutoSize = true };
-    private readonly Button _lightNow = new(), _darkNow = new();
-    private readonly TextBox _lightAt = new() { Width = 64 }, _darkAt = new() { Width = 64 };
-    private readonly NumericUpDown _lat = new() { DecimalPlaces = 4, Minimum = -90, Maximum = 90, Width = 90 }, _lon = new() { DecimalPlaces = 4, Minimum = -180, Maximum = 180, Width = 90 }, _offset = new() { Minimum = -180, Maximum = 180, Width = 64 };
+    private readonly OpsisRadio _manual = new() { AutoSize = true }, _autoSun = new() { AutoSize = true }, _autoFixed = new() { AutoSize = true };
+    private readonly OpsisButton _lightNow = new(), _darkNow = new();
+    private readonly OpsisText _lightAt = new() { Width = 70 }, _darkAt = new() { Width = 70 };
+    private readonly OpsisNumeric _lat = new() { DecimalPlaces = 4, Minimum = -90, Maximum = 90, Width = 90 }, _lon = new() { DecimalPlaces = 4, Minimum = -180, Maximum = 180, Width = 90 }, _offset = new() { Minimum = -180, Maximum = 180, Width = 64 };
     private readonly FlowLayoutPanel _swatches = new() { AutoSize = true, MaximumSize = new Size(760, 0), WrapContents = true };
-    private readonly Button _pick = new(), _fromWall = new();
-    private readonly CheckBox _transp = new(), _accentSurf = new(), _centered = new(), _search = new(), _taskView = new(), _widgets = new();
+    private readonly OpsisButton _pick = new(), _fromWall = new();
+    private readonly OpsisCheck _transp = new(), _accentSurf = new(), _centered = new(), _search = new(), _taskView = new(), _widgets = new();
     private readonly ListBox _themeList = new() { IntegralHeight = false, Height = 190, Width = 440, BorderStyle = BorderStyle.None, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = 38 };
     private readonly Label _themeInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) };
-    private readonly Button _themeApply = new(), _themeSave = new(), _themeDelete = new(), _themeImport = new(), _themeExport = new(), _themeFolder = new(), _winThemeApply = new(), _restore = new();
-    private readonly ComboBox _winThemes = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
+    private readonly OpsisButton _themeApply = new(), _themeSave = new(), _themeDelete = new(), _themeImport = new(), _themeExport = new(), _themeFolder = new(), _winThemeApply = new(), _restore = new();
+    private readonly OpsisCombo _winThemes = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
     private readonly Label _hWinThemes = new(), _tWinThemes = new();
     private List<OpsisTheme> _themeItems = new();
     private List<(string Name, string Path)> _winThemeItems = new();
     private readonly Label _hSchedule = new(), _hAccent = new(), _hTaskbar = new(), _hLooks = new(), _hEffects = new();   // _hLooks = "Theme manager" heading
-    private readonly CheckBox _borderCheck = new(), _hideTaskbar = new();
-    private readonly Button _borderColor = new();
-    private readonly ComboBox _corners = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _titleBars = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _backdrop = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly OpsisCheck _borderCheck = new(), _hideTaskbar = new();
+    private readonly OpsisButton _borderColor = new();
+    private readonly OpsisCombo _corners = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _titleBars = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _backdrop = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
     private readonly Label _tCorners = new(), _tTitle = new(), _tBackdrop = new();
     private readonly Label _hShell = new(), _hSlide = new(), _tCombine = new(), _tSlideEvery = new(), _tSlideStyle = new(), _slideInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) }, _tShellNote = new();
-    private readonly CheckBox _fileExt = new(), _hiddenFiles = new(), _clockSecs = new(), _animations = new(), _slideOn = new(), _slideShuffle = new();
-    private readonly ComboBox _combine = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 230 }, _slideStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
-    private readonly NumericUpDown _slideMin = new() { Minimum = 1, Maximum = 1440, Width = 70, Value = 30 };
-    private readonly Button _slideFolder = new(), _slideNext = new(), _restartExplorer = new();
+    private readonly OpsisCheck _fileExt = new(), _hiddenFiles = new(), _clockSecs = new(), _animations = new(), _slideOn = new(), _slideShuffle = new();
+    private readonly OpsisCombo _combine = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 230 }, _slideStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly OpsisNumeric _slideMin = new() { Minimum = 1, Maximum = 1440, Width = 70, Value = 30 };
+    private readonly OpsisButton _slideFolder = new(), _slideNext = new(), _restartExplorer = new();
     // TranslucentTB / RoundedTB / Mica For Everyone / ασφάλεια
     private readonly Label _hBar = new(), _hEvery = new(), _hSafety = new(), _tBarN = new(), _tBarM = new(), _tBarS = new(), _tBarOp = new(), _tShapeR = new(), _tShapeX = new(), _tShapeY = new(), _tExclude = new(), _barNote = new(), _everyNote = new(), _safetyInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) };
-    private readonly CheckBox _barOn = new(), _shapeOn = new(), _rpCheck = new();
-    private readonly ComboBox _barNormal = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _barMax = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _barStart = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
-    private readonly NumericUpDown _barOpacity = new() { Minimum = 0, Maximum = 100, Width = 60, Value = 60 }, _shapeRadius = new() { Minimum = 0, Maximum = 40, Width = 56, Value = 12 }, _shapeMx = new() { Minimum = 0, Maximum = 200, Width = 60, Value = 8 }, _shapeMy = new() { Minimum = 0, Maximum = 60, Width = 56, Value = 4 };
-    private readonly Button _barTint = new(), _capColor = new(), _capText = new(), _capClear = new(), _rpNow = new(), _openBackups = new();
-    private readonly TextBox _exclude = new() { Width = 420 };
+    private readonly OpsisCheck _barOn = new(), _shapeOn = new(), _rpCheck = new();
+    private readonly OpsisCombo _barNormal = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _barMax = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 }, _barStart = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly OpsisNumeric _barOpacity = new() { Minimum = 0, Maximum = 100, Width = 60, Value = 60 }, _shapeRadius = new() { Minimum = 0, Maximum = 40, Width = 56, Value = 12 }, _shapeMx = new() { Minimum = 0, Maximum = 200, Width = 60, Value = 8 }, _shapeMy = new() { Minimum = 0, Maximum = 60, Width = 56, Value = 4 };
+    private readonly OpsisButton _barTint = new(), _capColor = new(), _capText = new(), _capClear = new(), _rpNow = new(), _openBackups = new();
+    private readonly OpsisText _exclude = new() { Width = 420 };
     private readonly Label _tLight = new(), _tDark = new(), _tLat = new(), _tLon = new(), _tOff = new(), _tSafety = new();
 
     private static readonly int[] SwatchColors =
@@ -377,6 +380,8 @@ internal sealed class AppearancePage : UserControl
         _tShellNote.MaximumSize = new Size(760, 0); _slideInfo.Margin = new Padding(0, 4, 0, 6);
         _tSafety.MaximumSize = new Size(760, 0); _tWinThemes.MaximumSize = new Size(760, 0); _themeInfo.Margin = new Padding(0, 4, 0, 6);
 
+        OpsisSkin.Greek = _greek; OpsisSkin.Apply(_pal);
+        OpsisSkin.ThemeScrollbars(_flow); OpsisSkin.ThemeScrollbars(_themeList);
         _flow.Controls.Add(_status);
         _flow.Controls.Add(_hSchedule);
         _flow.Controls.Add(Row(_manual, _autoSun, _autoFixed));
@@ -429,8 +434,7 @@ internal sealed class AppearancePage : UserControl
 
         foreach (int rgb in SwatchColors)
         {
-            var b = new Button { Width = 34, Height = 34, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(255, Color.FromArgb(rgb)), Margin = new Padding(0, 0, 6, 6), Tag = rgb };
-            b.FlatAppearance.BorderSize = 0;
+            var b = new OpsisButton { AutoSize = false, Width = 34, Height = 34, Swatch = Color.FromArgb(255, Color.FromArgb(rgb)), Margin = new Padding(0, 0, 6, 6), Tag = rgb };
             b.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { AccentRgb = rgb }));
             _swatches.Controls.Add(b);
         }
@@ -450,7 +454,7 @@ internal sealed class AppearancePage : UserControl
         _fromWall.Click += (_, _) =>
         {
             int? c = _p.Engine.WallpaperAccent();
-            if (c == null) { MessageBox.Show(this, _greek ? "Δεν βρέθηκε χρώμα στο wallpaper (συμπαγές χρώμα ή αρχείο που λείπει)." : "No usable colour found in the wallpaper (solid colour or missing file).", "Opsis Appearance"); return; }
+            if (c == null) { OpsisBox.Show(this, _greek ? "Δεν βρέθηκε χρώμα στο wallpaper (συμπαγές χρώμα ή αρχείο που λείπει)." : "No usable colour found in the wallpaper (solid colour or missing file).", "Opsis Appearance"); return; }
             Do(() => _p.Engine.Apply(new Look { AccentRgb = c }));
         };
         _transp.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { Transparency = _transp.Checked }));
@@ -502,7 +506,7 @@ internal sealed class AppearancePage : UserControl
         _rpNow.Click += (_, _) =>
         {
             var r = _p.CreateRestorePointNow();
-            MessageBox.Show(this, r.Message, "Opsis Appearance", MessageBoxButtons.OK, r.Status == RestorePointStatus.Created ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            OpsisBox.Show(this, r.Message, "Opsis Appearance", MessageBoxButtons.OK, r.Status == RestorePointStatus.Created ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             RefreshAll();
         };
         _openBackups.Click += (_, _) => { try { Directory.CreateDirectory(_p.Vault.Root); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_p.Vault.Root) { UseShellExecute = true }); } catch (Exception) { } };
@@ -514,9 +518,9 @@ internal sealed class AppearancePage : UserControl
         _restartExplorer.Click += (_, _) =>
         {
             var ask = _greek ? "Ο Εξερευνητής των Windows θα κλείσει και θα ξανανοίξει (η γραμμή εργασιών θα εξαφανιστεί για λίγα δευτερόλεπτα). Συνέχεια;" : "Windows Explorer will close and start again (the taskbar disappears for a few seconds). Continue?";
-            if (MessageBox.Show(this, ask, "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            if (OpsisBox.Show(this, ask, "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             try { using var k = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskkill", "/f /im explorer.exe") { CreateNoWindow = true, UseShellExecute = false }); k?.WaitForExit(5000); }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+            catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         };
         _slideOn.Click += (_, _) =>
         {
@@ -533,7 +537,7 @@ internal sealed class AppearancePage : UserControl
         _slideMin.ValueChanged += (_, _) => { if (_loading) return; _p.Settings.Slideshow.IntervalMinutes = (int)_slideMin.Value; _p.SaveSettings(); };
         _slideStyle.SelectedIndexChanged += (_, _) => { if (_loading) return; _p.Settings.Slideshow.Style = (WallpaperStyle)_slideStyle.SelectedIndex; _p.SaveSettings(); };
         _slideFolder.Click += (_, _) => { if (PickSlideFolder()) RefreshAll(); };
-        _slideNext.Click += (_, _) => { if (!_p.SlideshowTick(DateTime.UtcNow, force: true)) MessageBox.Show(this, _greek ? "Δεν βρέθηκαν εικόνες (png, jpg, bmp) στον φάκελο." : "No pictures (png, jpg, bmp) found in the folder.", "Opsis Appearance"); RefreshAll(); };
+        _slideNext.Click += (_, _) => { if (!_p.SlideshowTick(DateTime.UtcNow, force: true)) OpsisBox.Show(this, _greek ? "Δεν βρέθηκαν εικόνες (png, jpg, bmp) στον φάκελο." : "No pictures (png, jpg, bmp) found in the folder.", "Opsis Appearance"); RefreshAll(); };
         _borderCheck.Click += (_, _) => ChangeEffects(e => e.ActiveBorder = _borderCheck.Checked);
         _borderColor.Click += (_, _) =>
         {
@@ -557,11 +561,11 @@ internal sealed class AppearancePage : UserControl
         {
             if (_winThemes.SelectedIndex < 0 || _winThemes.SelectedIndex >= _winThemeItems.Count) return;
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_winThemeItems[_winThemes.SelectedIndex].Path) { UseShellExecute = true }); }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+            catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         };
         _restore.Click += (_, _) =>
         {
-            if (!_p.Store.HasBackup) { MessageBox.Show(this, _greek ? "Δεν έχει γίνει καμία αλλαγή από το plugin ακόμη." : "The plugin has not changed anything yet.", "Opsis Appearance"); return; }
+            if (!_p.Store.HasBackup) { OpsisBox.Show(this, _greek ? "Δεν έχει γίνει καμία αλλαγή από το plugin ακόμη." : "The plugin has not changed anything yet.", "Opsis Appearance"); return; }
             _p.RestoreOriginal(); RefreshAll();
         };
 
@@ -581,14 +585,14 @@ internal sealed class AppearancePage : UserControl
     private void Do(Action change)
     {
         try { _p.Backup(); change(); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+        catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         RefreshAll();
     }
 
     private void ChangeEffects(Action<EffectsSettings> change)
     {
         try { change(_p.Settings.Effects); _p.Store.Save(_p.Settings); _p.ApplyEffects(); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+        catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         RefreshAll();
     }
 
@@ -600,7 +604,7 @@ internal sealed class AppearancePage : UserControl
         return true;
     }
 
-    private void ModeChanged(ThemeMode mode, RadioButton rb)
+    private void ModeChanged(ThemeMode mode, OpsisRadio rb)
     {
         if (_loading || !rb.Checked) return;
         _p.Settings.Mode = mode; _p.SaveSettings(); RefreshAll();
@@ -655,14 +659,6 @@ internal sealed class AppearancePage : UserControl
         return t.Description.Length > 0 ? t.Description + (text.Length > 0 ? "  [" + text + "]" : "") : text;
     }
 
-    private void DrawComboItem(object? sender, DrawItemEventArgs e)
-    {
-        if (sender is not ComboBox cb || e.Index < 0) return;
-        bool sel = (e.State & DrawItemState.Selected) != 0 && (e.State & DrawItemState.ComboBoxEdit) == 0;
-        using (var bg = new SolidBrush(sel ? _pal.Accent : _pal.Surface)) e.Graphics.FillRectangle(bg, e.Bounds);
-        TextRenderer.DrawText(e.Graphics, cb.Items[e.Index]?.ToString() ?? "", cb.Font, new Rectangle(e.Bounds.X + 4, e.Bounds.Y, e.Bounds.Width - 6, e.Bounds.Height), sel ? Color.Black : _pal.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-    }
-
     private void ShowThemeInfo()
     {
         var t = SelectedTheme;
@@ -695,7 +691,7 @@ internal sealed class AppearancePage : UserControl
     {
         var t = SelectedTheme; if (t == null) return;
         var r = _p.ApplyTheme(t);
-        if (r.Errors.Count > 0) MessageBox.Show(this, string.Join("\n", r.Errors), "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        if (r.Errors.Count > 0) OpsisBox.Show(this, string.Join("\n", r.Errors), "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         RefreshAll();
     }
 
@@ -703,7 +699,7 @@ internal sealed class AppearancePage : UserControl
     {
         string? name = Prompt(_greek ? "Όνομα θέματος:" : "Theme name:", _greek ? "Το θέμα μου" : "My theme");
         if (string.IsNullOrWhiteSpace(name)) return;
-        bool withWall = MessageBox.Show(this, _greek ? "Να συμπεριληφθεί και το τρέχον wallpaper των Windows;" : "Include the current Windows wallpaper too?", "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+        bool withWall = OpsisBox.Show(this, _greek ? "Να συμπεριληφθεί και το τρέχον wallpaper των Windows;" : "Include the current Windows wallpaper too?", "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         try
         {
             _p.Backup();
@@ -711,14 +707,14 @@ internal sealed class AppearancePage : UserControl
             _p.Themes.Save(theme, wall);
             ReloadThemes(theme.Name);
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+        catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
     }
 
     private void DeleteSelectedTheme()
     {
         var t = SelectedTheme; if (t == null || t.BuiltIn) return;
-        if (MessageBox.Show(this, _greek ? $"Διαγραφή του θέματος «{t.Name}»;" : $"Delete the theme \"{t.Name}\"?", "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        try { _p.Themes.Delete(t.Name); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+        if (OpsisBox.Show(this, _greek ? $"Διαγραφή του θέματος «{t.Name}»;" : $"Delete the theme \"{t.Name}\"?", "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        try { _p.Themes.Delete(t.Name); } catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         ReloadThemes();
     }
 
@@ -727,7 +723,7 @@ internal sealed class AppearancePage : UserControl
         using var dlg = new OpenFileDialog { Filter = "Opsis theme (*.opsistheme)|*.opsistheme|Zip (*.zip)|*.zip", Title = _greek ? "Εισαγωγή θέματος" : "Import theme" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         try { var t = _p.Themes.Import(dlg.FileName); ReloadThemes(t.Name); }
-        catch (Exception ex) { MessageBox.Show(this, (_greek ? "Μη έγκυρο αρχείο θέματος: " : "Not a valid theme package: ") + ex.Message, "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        catch (Exception ex) { OpsisBox.Show(this, (_greek ? "Μη έγκυρο αρχείο θέματος: " : "Not a valid theme package: ") + ex.Message, "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
     private void ExportSelectedTheme()
@@ -736,23 +732,14 @@ internal sealed class AppearancePage : UserControl
         using var dlg = new SaveFileDialog { Filter = "Opsis theme (*.opsistheme)|*.opsistheme", FileName = t.Name + ".opsistheme", Title = _greek ? "Εξαγωγή θέματος" : "Export theme" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         try { _p.Themes.Export(t, dlg.FileName); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Opsis Appearance"); }
+        catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
     }
 
-    private string? Prompt(string text, string initial)
-    {
-        using var f = new Form { Text = "Opsis Appearance", FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent, Width = 360, Height = 150, MinimizeBox = false, MaximizeBox = false };
-        var l = new Label { Text = text, Left = 12, Top = 12, AutoSize = true };
-        var t = new TextBox { Left = 12, Top = 34, Width = 320, Text = initial };
-        var ok = new Button { Text = "OK", Left = 176, Top = 70, Width = 75, DialogResult = DialogResult.OK };
-        var cancel = new Button { Text = _greek ? "Άκυρο" : "Cancel", Left = 257, Top = 70, Width = 75, DialogResult = DialogResult.Cancel };
-        f.Controls.AddRange(new Control[] { l, t, ok, cancel }); f.AcceptButton = ok; f.CancelButton = cancel;
-        return f.ShowDialog(this) == DialogResult.OK ? t.Text : null;
-    }
+    private string? Prompt(string text, string initial) => OpsisBox.Prompt(this, text, initial);
 
     public void ApplyLanguage(bool greek)
     {
-        _greek = greek;
+        _greek = greek; OpsisSkin.Greek = greek;
         string T(string el, string en) => greek ? el : en;
         _hSchedule.Text = T("Θέμα Light / Dark", "Light / Dark theme");
         _manual.Text = T("Χειροκίνητα", "Manual"); _autoSun.Text = T("Αυτόματα με ανατολή/δύση", "Automatic (sunrise/sunset)"); _autoFixed.Text = T("Αυτόματα με σταθερές ώρες", "Automatic (fixed times)");
@@ -771,7 +758,7 @@ internal sealed class AppearancePage : UserControl
         string[] cs = greek ? new[] { "Προεπιλογή", "Στρογγυλές", "Μικρές στρογγυλές", "Τετράγωνες" } : new[] { "Default", "Round", "Small round", "Square" };
         string[] ds = greek ? new[] { "Ανενεργό", "Πάντα σκούρες", "Ακολουθεί το θέμα" } : new[] { "Off", "Always dark", "Follow theme" };
         string[] bs = greek ? new[] { "Προεπιλογή", "Κανένα", "Mica", "Acrylic", "Tabbed" } : new[] { "Default", "None", "Mica", "Acrylic", "Tabbed" };
-        void Fill(ComboBox cb, string[] items) { int i = cb.SelectedIndex; cb.Items.Clear(); cb.Items.AddRange(items); cb.SelectedIndex = Math.Max(0, i); }
+        void Fill(OpsisCombo cb, string[] items) { int i = cb.SelectedIndex; cb.Items.Clear(); cb.Items.AddRange(items); cb.SelectedIndex = Math.Max(0, i); }
         _loading = true; Fill(_corners, cs); Fill(_titleBars, ds); Fill(_backdrop, bs); _loading = false;
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
         _hBar.Text = T("Εμφάνιση taskbar (διαφάνεια, χρώμα, στρογγυλά άκρα)", "Taskbar look (transparency, colour, rounded edges)");
@@ -821,7 +808,6 @@ internal sealed class AppearancePage : UserControl
         _pal = p;
         BackColor = p.Bg; _flow.BackColor = p.Bg; _swatches.BackColor = p.Bg;
         _themeList.BackColor = p.Surface; _themeList.ForeColor = p.Text; _themeInfo.ForeColor = p.Muted; _themeInfo.BackColor = p.Bg;
-        _winThemes.BackColor = p.Surface; _winThemes.ForeColor = p.Text; _winThemes.FlatStyle = FlatStyle.Flat;
         foreach (var l in _headings) { l.ForeColor = p.Text; l.BackColor = p.Bg; }
         foreach (var l in _texts) { l.ForeColor = p.Muted; l.BackColor = p.Bg; }
         _status.ForeColor = p.Accent; _status.BackColor = p.Bg;
@@ -829,21 +815,14 @@ internal sealed class AppearancePage : UserControl
         foreach (var r in _radios) { r.ForeColor = p.Text; r.BackColor = p.Bg; }
         foreach (var b in _buttons) StyleButton(b);
         _themeList.Invalidate();
-        foreach (var cb in new ComboBox[] { _corners, _titleBars, _backdrop, _winThemes, _combine, _slideStyle, _barNormal, _barMax, _barStart })
-        {
-            cb.BackColor = p.Surface; cb.ForeColor = p.Text; cb.FlatStyle = FlatStyle.Flat;
-            cb.DrawMode = DrawMode.OwnerDrawFixed; cb.ItemHeight = 20;
-            cb.DrawItem -= DrawComboItem; cb.DrawItem += DrawComboItem;      // dark list + dark face instead of the white system one
-        }
-        foreach (var t in new TextBox[] { _lightAt, _darkAt, _exclude }) { t.BackColor = p.Surface; t.ForeColor = p.Text; }
-        foreach (var n in new NumericUpDown[] { _lat, _lon, _offset, _slideMin, _barOpacity, _shapeRadius, _shapeMx, _shapeMy }) { n.BackColor = p.Surface; n.ForeColor = p.Text; }
+        OpsisSkin.Apply(p);                       // every Opsis control repaints with the new palette
+        foreach (var t in new OpsisText[] { _lightAt, _darkAt, _exclude }) t.Invalidate();
         foreach (Control c in _flow.Controls) if (c is FlowLayoutPanel row) row.BackColor = p.Bg;
     }
 
-    private void StyleButton(Button b)
+    private void StyleButton(OpsisButton b)
     {
-        b.FlatStyle = FlatStyle.Flat; b.BackColor = _pal.Surface; b.ForeColor = _pal.Text; b.FlatAppearance.BorderColor = _pal.Border;
-        b.AutoSize = true; b.Padding = new Padding(8, 3, 8, 3); b.Margin = new Padding(0, 2, 8, 2);
+        b.AutoSize = true; b.Margin = new Padding(0, 2, 8, 2); b.Invalidate();
     }
 
     public void RefreshAll()
@@ -868,7 +847,7 @@ internal sealed class AppearancePage : UserControl
             : $"{sl.Folder}  ·  {pics} " + (_greek ? "εικόνες" : "pictures") + (sl.LastFile != null ? $"  ·  {(_greek ? "τελευταία" : "last")}: {Path.GetFileName(sl.LastFile)}" : "");
         var tl = s.TaskbarLook; var ts = s.TaskbarShape;
         _barOn.Checked = tl.Enabled; _barNormal.SelectedIndex = (int)tl.Normal; _barMax.SelectedIndex = (int)tl.Maximized; _barStart.SelectedIndex = (int)tl.StartOpen;
-        _barOpacity.Value = Math.Clamp(tl.OpacityPercent, 0, 100); _barTint.BackColor = Color.FromArgb(255, Color.FromArgb(tl.TintRgb));
+        _barOpacity.Value = Math.Clamp(tl.OpacityPercent, 0, 100); _barTint.Swatch = Color.FromArgb(255, Color.FromArgb(tl.TintRgb));
         _shapeOn.Checked = ts.Enabled; _shapeRadius.Value = Math.Clamp(ts.Radius, 0, 40); _shapeMx.Value = Math.Clamp(ts.MarginX, 0, 200); _shapeMy.Value = Math.Clamp(ts.MarginY, 0, 60);
         _exclude.Text = string.Join(", ", s.Effects.ExcludedProcesses);
         _rpCheck.Checked = s.Safety.RestorePointBeforeInvasive;

@@ -79,6 +79,7 @@ internal sealed class TrayContext : ApplicationContext
         };
 
         PushLanguageAndTheme();
+        _plugin.StyleWindow(_window);
         _plugin.Start();
         _plugin.NavigationRequested += _ => ShowWindow();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
