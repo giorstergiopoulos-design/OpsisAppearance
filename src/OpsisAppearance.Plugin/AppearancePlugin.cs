@@ -560,6 +560,8 @@ internal sealed class AppearancePage : UserControl
         _winThemeApply.Click += (_, _) =>
         {
             if (_winThemes.SelectedIndex < 0 || _winThemes.SelectedIndex >= _winThemeItems.Count) return;
+            var safety = ThemeSafety.Check(_winThemeItems[_winThemes.SelectedIndex].Path);
+            if (safety.NeedsWarning && OpsisBox.Show(this, ThemeSafety.Explain(safety, _greek), "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_winThemeItems[_winThemes.SelectedIndex].Path) { UseShellExecute = true }); }
             catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         };

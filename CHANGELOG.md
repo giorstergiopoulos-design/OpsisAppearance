@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.4.0 — 2026-10-23
+- **Safer Windows themes**: before a `.theme` is applied, its visual style (.msstyles) is checked; if it is not signed by Microsoft and no signature patcher is installed, a warning explains what Windows will do (default answer: No). Opsis still never patches system files.
 - **Opsis look for the whole page and its dialogs**: pill buttons, rounded check boxes, round radio buttons, drop-downs that open a flat menu, rounded text boxes, − / + number boxes, themed message boxes and prompt, dark scroll bars, and a title bar in the page colours for the stand-alone window. Same palette as the host, repainted on every theme change.
 - **Taskbar look** (TranslucentTB-style): clear / blur / acrylic / solid with tint and strength, with a different state for a maximized window and for Start/Search, on every monitor (`SetWindowCompositionAttribute`, no injection, no file changes, restored when the plugin stops).
 - **Rounded / floating taskbar** (RoundedTB-style): radius and gaps through a clipping region (`SetWindowRgn`), re-applied when the taskbar size changes, refused when it would be absurdly small (vertical taskbar).
