@@ -1,8 +1,15 @@
 # Changelog
 
-## 1.4.0 — 2026-10-23
+## 1.5.0 — 2026-10-27
 - **Safer Windows themes**: before a `.theme` is applied, its visual style (.msstyles) is checked; if it is not signed by Microsoft and no signature patcher is installed, a warning explains what Windows will do (default answer: No). Opsis still never patches system files.
 - **Opsis look for the whole page and its dialogs**: pill buttons, rounded check boxes, round radio buttons, drop-downs that open a flat menu, rounded text boxes, − / + number boxes, themed message boxes and prompt, dark scroll bars, and a title bar in the page colours for the stand-alone window. Same palette as the host, repainted on every theme change.
+- **Welcome guide** (6 pages, Greek/English) on the first start of each new minor version of the stand-alone app and from the tray menu / the plugin page: the real app icon with a living glow and rotating ring, "Don't show again", closes by shrinking towards the tray / window icon (plain fade when Windows animations are off).
+- **"The Opsis family"** window with a card per app (capabilities, installed / update-available state from a read-only probe, Open, Download with confirmation + SHA-256 check that refuses a mismatch, Details), offered once after the guide.
+- **New-version balloon** in the tray (stand-alone app): one GET a day to the GitHub releases API with ETag, once per version, switch in the tray menu; "Check now" entry.
+- Inside Opsis the plugin only adds the menu/page entries ("Welcome guide…", "The Opsis family…"); it never shows a splash or a balloon by itself.
+- Shared core with 81 new unit tests (version comparison, once-per-version, catalogue validation, install detection, SHA-256 verification). 217 tests in total.
+
+## 1.4.0 — 2026-10-23
 - **Taskbar look** (TranslucentTB-style): clear / blur / acrylic / solid with tint and strength, with a different state for a maximized window and for Start/Search, on every monitor (`SetWindowCompositionAttribute`, no injection, no file changes, restored when the plugin stops).
 - **Rounded / floating taskbar** (RoundedTB-style): radius and gaps through a clipping region (`SetWindowRgn`), re-applied when the taskbar size changes, refused when it would be absurdly small (vertical taskbar).
 - **Mica for every window** (Mica For Everyone-style): per-process exclusion list and title bar / title text colours, on top of the existing backdrop, corners and dark title bars.

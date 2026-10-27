@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Opsis.Suite;
 using OpsisNewsCrawler.Plugin.Abstractions;
 
 namespace OpsisAppearance.App;
@@ -22,13 +23,18 @@ internal static class Program
             plugin.SetLanguage(args.Contains("--el") ? "el" : "en");
             plugin.SetTheme(true, Color.FromArgb(255, 18, 22, 32).ToArgb(), Color.FromArgb(255, 28, 34, 48).ToArgb(), Color.FromArgb(255, 52, 62, 84).ToArgb(), Color.FromArgb(255, 235, 240, 250).ToArgb(), Color.FromArgb(255, 150, 160, 180).ToArgb(), Color.FromArgb(255, 0, 200, 230).ToArgb(), 1.0);
             var page = plugin.GetNavigationItems()[0].CreatePage();
-            using var form = new Form { ClientSize = new Size(820, 2350), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
-            form.Controls.Add(page); form.Show(); Application.DoEvents();
-            using var bmp = new Bitmap(form.ClientSize.Width, form.ClientSize.Height);
-            page.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
+            // Ένα top-level παράθυρο δεν μπορεί να ξεπεράσει το ύψος της οθόνης: η σελίδα μπαίνει σε ένα ψηλό panel-παιδί ώστε να αποδοθεί ολόκληρη.
+            using var form = new Form { ClientSize = new Size(820, 900), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
+            var host = new Panel { Location = Point.Empty, Size = new Size(820, 3200) };
+            page.Dock = DockStyle.Fill; host.Controls.Add(page); form.Controls.Add(host); form.Show(); Application.DoEvents();
+            using var bmp = new Bitmap(host.Width, host.Height);
+            host.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
             bmp.Save(args[at + 1], System.Drawing.Imaging.ImageFormat.Png);
             return;
         }
+
+        // Test switch: --suite-demo shows the welcome guide, the family window and a balloon with slowed-down animations (for screenshots). Uses no settings and no network.
+        if (args.Contains("--suite-demo")) { ApplicationConfiguration.Initialize(); Application.Run(new SuiteDemo()); return; }
 
         using var mutex = new Mutex(true, @"Local\OpsisAppearance.SingleInstance", out bool first);
         if (!first) return;                              // already running: it lives in the tray
@@ -57,6 +63,10 @@ internal sealed class TrayContext : ApplicationContext
     private readonly Icon _icon;
     private bool _exiting;
     private bool _greek;
+    private readonly SuiteContext _suite;
+    private readonly UpdateChecker _updater;
+    private readonly System.Windows.Forms.Timer _updTimer = new() { Interval = 30_000 };   // πρώτος έλεγχος 30 s μετά την εκκίνηση, μετά κάθε 24 ώρες
+    private string? _pendingUrl;
 
     public TrayContext(bool startMinimized)
     {
@@ -80,14 +90,58 @@ internal sealed class TrayContext : ApplicationContext
 
         PushLanguageAndTheme();
         _plugin.StyleWindow(_window);
+        // Ο οδηγός, η «οικογένεια Opsis» και η ειδοποίηση νέας έκδοσης ανήκουν στην ΑΥΤΟΝΟΜΗ εφαρμογή· μέσα στο Opsis (plugin) δεν ξεκινά τίποτα μόνο του.
+        _suite = AppearanceSuite.CreateContext(CurrentColors(), () => _window.Visible ? new Rectangle(_window.Left + 10, _window.Top + 8, 20, 20) : Rectangle.Empty);
+        _updater = new UpdateChecker(_suite.Http, _suite.Store, () => DateTime.UtcNow, AppearanceSuite.Owner, AppearanceSuite.Repo, AppearanceSuite.Version);
         _plugin.Start();
         _plugin.NavigationRequested += _ => ShowWindow();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         _tray = new NotifyIcon { Icon = _icon, Text = "Opsis Appearance", Visible = true, ContextMenuStrip = BuildMenu() };
         _tray.DoubleClick += (_, _) => ShowWindow();
+        _tray.BalloonTipClicked += (_, _) => OpenReleasePage();
 
         if (!startMinimized) ShowWindow();
+
+        var welcome = new System.Windows.Forms.Timer { Interval = 1500 };
+        welcome.Tick += (_, _) => { welcome.Dispose(); MaybeWelcome(); };
+        welcome.Start();
+        _updTimer.Tick += async (_, _) => { _updTimer.Interval = 24 * 60 * 60 * 1000; await CheckUpdateAsync(false); };
+        _updTimer.Start();
+    }
+
+    private SuiteColors CurrentColors() =>
+        Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is not int v || v != 0 ? SuiteColors.Light : SuiteColors.Dark;
+
+    private void MaybeWelcome()
+    {
+        if (!AppearanceSuite.ShouldAutoWelcome(_suite.Store, AppearanceSuite.Version)) return;
+        _suite.Colors = CurrentColors();
+        AppearanceSuite.ShowWelcome(_suite, w =>
+        {
+            if (w.Finished && _suite.Store.Get("suite.offered") != "1") { _suite.Store.Set("suite.offered", "1"); _ = AppearanceSuite.ShowFamilyAsync(_suite); }     // προσφέρεται ΜΙΑ φορά μετά τον οδηγό
+        });
+    }
+
+    /// <summary>Έλεγχος νέας έκδοσης (ένα GET στο GitHub): balloon στο tray, μία φορά ανά έκδοση· το κλικ ανοίγει τη σελίδα της έκδοσης.</summary>
+    private async Task CheckUpdateAsync(bool force)
+    {
+        UpdateInfo? info;
+        try { info = await _updater.CheckAsync(force); } catch (Exception) { info = null; }
+        if (info == null)
+        {
+            if (force) _tray.ShowBalloonTip(5000, "Opsis Appearance", _greek ? "Δεν υπάρχει νεότερη έκδοση (ή δεν ήταν δυνατός ο έλεγχος)." : "No newer version (or the check was not possible).", ToolTipIcon.Info);
+            return;
+        }
+        _pendingUrl = info.Url;
+        _tray.ShowBalloonTip(12000, "Opsis Appearance " + info.Tag, _greek ? "Διαθέσιμη νέα έκδοση — κάνε κλικ για να δεις τι νέο υπάρχει." : "A new version is available — click to see what's new.", ToolTipIcon.Info);
+        _updater.MarkNotified(info.Tag);
+    }
+
+    private void OpenReleasePage()
+    {
+        var url = _pendingUrl; if (url == null || !SafeUrl.IsAllowed(url)) return;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch (Exception) { }
     }
 
     private ContextMenuStrip BuildMenu()
@@ -101,6 +155,11 @@ internal sealed class TrayContext : ApplicationContext
             var captured = item;
             menu.Items.Add(_greek ? captured.TitleEl : captured.TitleEn, null, (_, _) => captured.Invoke());
         }
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(_greek ? "Έλεγχος για νέα έκδοση τώρα" : "Check for a new version now", null, async (_, _) => await CheckUpdateAsync(true));
+        var notify = new ToolStripMenuItem(_greek ? "Ειδοποίηση για νέες εκδόσεις" : "Notify about new versions") { CheckOnClick = true, Checked = _updater.NotifyEnabled };
+        notify.CheckedChanged += (_, _) => _updater.NotifyEnabled = notify.Checked;
+        menu.Items.Add(notify);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_greek ? "Έξοδος (επαναφορά εφέ παραθύρων)" : "Exit (restores window effects)", null, (_, _) => Exit());
         return menu;
@@ -158,5 +217,28 @@ internal sealed class TrayContext : ApplicationContext
     {
         if (disposing) { _tray.Dispose(); _window.Dispose(); _icon.Dispose(); }
         base.Dispose(disposing);
+    }
+}
+
+/// <summary>--suite-demo: οδηγός (σελίδα 1 → τελευταία → κλείσιμο με αργό animation), παράθυρο οικογένειας, balloon. Χωρίς δίκτυο και χωρίς αποθήκευση ρυθμίσεων.</summary>
+internal sealed class SuiteDemo : ApplicationContext
+{
+    public SuiteDemo() { SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext()); _ = Run(); }     // ώστε μετά από κάθε await να ξαναμπαίνουμε στο UI thread
+
+    private async Task Run()
+    {
+        var tray = new NotifyIcon { Icon = SystemIcons.Application, Visible = true, Text = "Opsis Appearance" };
+        var ctx = AppearanceSuite.CreateContext(SuiteColors.Dark, null, offline: true); ctx.MinimiseMs = 3000; ctx.ForceTop = true;
+        await Task.Delay(1500);
+        var w = AppearanceSuite.ShowWelcome(ctx); w.TopMost = true;
+        await Task.Delay(4000); w.Go(w.PageCount - 1);
+        await Task.Delay(4000); _ = w.CloseAsync(true);
+        await Task.Delay(5500);
+        var f = await AppearanceSuite.ShowFamilyAsync(ctx); f.TopMost = true;
+        await Task.Delay(5000); _ = f.MinimiseAsync();
+        await Task.Delay(4500);
+        tray.ShowBalloonTip(15000, "Opsis Appearance v9.9.9", "A new version is available — click to see what's new.", ToolTipIcon.Info);
+        await Task.Delay(6000);
+        tray.Visible = false; tray.Dispose(); ExitThread();
     }
 }

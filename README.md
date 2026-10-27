@@ -12,7 +12,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-0078D6?logo=windows&logoColor=white" />
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" />
-  <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-00B4D8" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.5.0-00B4D8" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
@@ -28,6 +28,7 @@
 | 🎨 Accent | 12 έτοιμα χρώματα, δικό σου χρώμα, ή **χρώμα από το wallpaper** (κυρίαρχο χρώμα της εικόνας) |
 | 🧱 Taskbar | Στοίχιση αριστερά/κέντρο, Αναζήτηση, Task View, Widgets, διαφάνειες, accent σε Start/taskbar/τίτλους |
 | 🪟 Εφέ παραθύρων | Χρωματιστό **border στο ενεργό παράθυρο**, **γωνίες** (στρογγυλές/μικρές/τετράγωνες), **σκούρες γραμμές τίτλου**, backdrop **Mica / Acrylic / Tabbed**, αυτόματη απόκρυψη taskbar |
+| 👋 Καλωσόρισμα και οικογένεια Opsis | Οδηγός χρήσης 6 σελίδων στην πρώτη εκκίνηση κάθε νέας έκδοσης (αυτόνομη εφαρμογή), κάρτες όλων των εφαρμογών της οικογένειας με Άνοιγμα / Λήψη με έλεγχο SHA-256, και balloon νέας έκδοσης στο tray. Μέσα στο Opsis υπάρχουν μόνο οι εγγραφές μενού/σελίδας (όχι δεύτερο splash) |
 | 🫧 Εμφάνιση taskbar (στο πνεύμα του TranslucentTB) | Διαφανές / blur / acrylic / συμπαγές με χρώμα και ένταση, **διαφορετική κατάσταση όταν υπάρχει μεγιστοποιημένο παράθυρο ή ανοίγει το Start**, κάθε οθόνη. Χωρίς injection |
 | ⭕ Στρογγυλό / «επιπλέον» taskbar (στο πνεύμα του RoundedTB) | Ακτίνα και κενά γύρω-γύρω με περιοχή κοπής (`SetWindowRgn`), αυτόματη επανεφαρμογή όταν αλλάζει το μέγεθος |
 | 🪟 Mica για όλα τα παράθυρα (στο πνεύμα του Mica For Everyone) | Backdrop Mica/Acrylic/Tabbed, γωνίες, σκούρος τίτλος **και χρώμα γραμμής/κειμένου τίτλου**, με **λίστα εξαιρέσεων** ανά διεργασία |
@@ -38,6 +39,12 @@
 | ↩ Επαναφορά | Την πρώτη αλλαγή αποθηκεύεται αντίγραφο των αρχικών τιμών· το κουμπί «Επαναφορά» τις γυρνά όλες πίσω. Τα εφέ παραθύρων επαναφέρονται πλήρως όταν σταματά η εφαρμογή |
 
 **Ελαφρύ για αδύναμα PC:** κανένα background thread, κανένα polling. Ένας timer 60 δευτ. μόνο όσο είναι ενεργό αυτόματο θέμα· τα εφέ παραθύρων χρησιμοποιούν ειδοποιήσεις των Windows (`SetWinEventHook`) και όχι έλεγχο σε βρόχο.
+
+### Ιδιωτικότητα — τι επικοινωνεί με το διαδίκτυο (αυτόνομη εφαρμογή)
+
+- **Έλεγχος νέας έκδοσης** (Μενού tray → «Ειδοποίηση για νέες εκδόσεις», ενεργός από προεπιλογή): 30″ μετά την εκκίνηση και μετά κάθε 24 ώρες ένα `GET` στο `api.github.com/repos/giorstergiopoulos-design/OpsisAppearance/releases/latest` (ETag, timeout 8″). Τίποτα άλλο δεν στέλνεται. Μία ειδοποίηση ανά έκδοση.
+- **Κατάλογος εφαρμογών** (παράθυρο «Οι εφαρμογές της οικογένειας Opsis»): το πολύ μία λήψη την ημέρα του `suite/apps.json` από το GitHub (έγκυρο μόνο από github.com, ≤256 KB, με έλεγχο)· αλλιώς το ενσωματωμένο αντίγραφο. Η ανίχνευση «εγκατεστημένο» διαβάζει μόνο registry/φακέλους. Λήψεις μόνο μετά από επιβεβαίωση και με έλεγχο SHA-256 (άρνηση σε ασυμφωνία)· τίποτα δεν εκτελείται αυτόματα.
+- Μέσα στο Opsis (plugin) δεν γίνεται κανένας αυτόματος έλεγχος ή balloon από το plugin.
 
 ### Τι ΔΕΝ περιλαμβάνεται (και γιατί)
 
@@ -67,7 +74,7 @@
 
 ```powershell
 powershell -File build.ps1          # δοκιμές + standalone + plugin + zips + installer (Inno Setup 7)
-dotnet test OpsisAppearance.sln     # 128 unit tests
+dotnet test OpsisAppearance.sln     # 217 unit tests
 ```
 
 Απαιτείται: Windows 11, [.NET 10 SDK](https://dotnet.microsoft.com/download), [Inno Setup 7](https://jrsoftware.org/isdl.php).

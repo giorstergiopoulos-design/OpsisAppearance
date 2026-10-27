@@ -211,7 +211,8 @@ public class PluginContractTests
         plugin.SetTheme(true, 0x121620, 0x1c2230, 0x343e54, 0xebf0fa, 0x96a0b4, 0x00c8e6, 1.0);    // no alpha byte: must not throw
         Assert.Equal("giorstergiopoulos.opsisappearance", plugin.Id);
         Assert.Single(plugin.GetNavigationItems());
-        Assert.Equal(2, plugin.GetTrayMenuItems().Count);
+        var keys = plugin.GetTrayMenuItems().Select(i => i.Key).ToArray();
+        Assert.Equal(new[] { "appearance.toggle", "appearance.open", "appearance.welcome", "appearance.family" }, keys);      // οδηγός + οικογένεια Opsis: μόνο εγγραφές μενού, τίποτα δεν ξεκινά μόνο του
         Assert.NotEmpty(plugin.GetAboutInfo().Sections);
     }
 }
