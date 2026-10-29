@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0 — 2026-10-29
+- **Shared control library Opsis.UI** (libs/Opsis.UI.dll, commit in libs/Opsis.UI.version.txt) replaces our own copies: `OpsisCheck` -> `FlatCheckBox`, `OpsisButton` -> `FlatButton`, `OpsisCombo` (+ `OpsisMenuRenderer`) -> `FlatComboBox`. Deleted from OpsisControls.cs; only the colour-swatch button (`SwatchButton`, a thin subclass of FlatButton) and the radio / text / numeric boxes remain here. The colours reach the library through one live adapter (`OpsisSkin.Tokens`), so the Opsis host theme still drives everything.
+- Gains from the library: keyboard focus ring, Space toggles, indeterminate state, DPI-aware sizes, right-to-left mirroring, arrow/Home/End keys.
+- The plugin folder now also contains `Opsis.UI.dll` (installer and plugin zip). Inside Opsis the two copies must keep the same AssemblyVersion (0.1.0.0).
+- Verified: 220 unit tests pass; settings page captured in dark and light, English and Greek (docs/img). Not verified: real 150/200 % DPI and RTL on the Appearance page itself (the library has its own gallery tests for both), plugin loaded inside a running Opsis.
+
 ## 1.5.1 — 2026-10-29
 - **Security audit** (details and trust model in SECURITY.md). Fixed: `taskkill` and `explorer.exe` are started by full Windows path (no search-path planting); the family window launches an app only if its registry-provided path is an existing local full-path `.exe`; the uninstaller removes a custom plugin folder only when it is called "Opsis Appearance" and contains our DLL. Reviewed without findings: downloads (HTTPS, allow-list, size, SHA-256, no auto-run), `.opsistheme` import (no zip-slip), `.theme` pre-flight, dependencies (no known vulnerable packages), no secrets stored. Open: plugin DLL integrity is checked by the Opsis host, not by us; binaries are not code-signed.
 - **Real icons of all 7 apps** in the family window (embedded .ico files, never from the network); the letter tile is only the fallback for an unknown app. Test: every catalogue app resolves to an embedded icon. Verified in a screenshot of the real window.

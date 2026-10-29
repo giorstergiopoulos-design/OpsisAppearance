@@ -14,7 +14,7 @@
 | `.opsistheme` zip | only `theme.json` and one wallpaper entry, no paths, size limits on real bytes (zip-slip impossible) — reviewed, tests exist |
 | `.theme` (Windows) | pre-flight check of the referenced visual style; unsigned style → explicit warning — reviewed |
 | Secrets | none stored; no API keys; no personal data in logs (the app writes none) |
-| Dependencies | `dotnet list package --vulnerable --include-transitive`: none |
+| Dependencies | `dotnet list package --vulnerable --include-transitive`: none; shared `Opsis.UI.dll` is committed in `libs/` with the commit it was built from |
 
 ## Still open / by design
 - Plugin DLL integrity inside Opsis (host side, see above).

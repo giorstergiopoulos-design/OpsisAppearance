@@ -1,3 +1,4 @@
+using Opsis.UI;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
@@ -22,7 +23,19 @@ internal static class OpsisSkin
     public static Color Hover => Mix(P.Surface, P.Text, 0.12f);
     public static Color Pressed => Mix(P.Surface, P.Accent, 0.30f);
 
-    public static void Apply(Palette p) { P = p; Changed?.Invoke(); }
+
+    /// <summary>Οι χρωματικές τιμές του Opsis Appearance προς την κοινή βιβλιοθήκη Opsis.UI (ζωντανός προσαρμογέας, όχι αντίγραφο).</summary>
+    private sealed class Tokens : Opsis.UI.IOpsisTheme
+    {
+        public bool IsDark => OpsisSkin.IsDark;
+        public Color Background => P.Bg; public Color Surface => P.Surface; public Color Border => P.Border;
+        public Color Text => P.Text; public Color TextMuted => P.Muted; public Color Accent => P.Accent;
+        public Color SurfaceHover => OpsisSkin.Hover;
+        public Color OnAccent => OpsisSkin.ReadableOn(P.Accent);
+    }
+    static OpsisSkin() => Opsis.UI.OpsisTheme.Use(new Tokens());
+
+    public static void Apply(Palette p) { P = p; Opsis.UI.OpsisTheme.NotifyChanged(); Changed?.Invoke(); }
 
     public static Color Mix(Color a, Color b, float t) =>
         Color.FromArgb(255, (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
@@ -97,103 +110,25 @@ internal abstract class SkinnedControl : Control
     protected override void Dispose(bool disposing) { if (disposing) OpsisSkin.Changed -= _changed; base.Dispose(disposing); }
 }
 
-internal sealed class OpsisButton : Button
+/// <summary>Κουμπί-δείγμα χρώματος (accent / χρώμα taskbar): μόνο η ζωγραφιά του δείγματος είναι δική μας, όλα τα άλλα κουμπιά είναι το κοινό Opsis.UI.FlatButton.</summary>
+internal sealed class SwatchButton : FlatButton
 {
-    private bool _hot, _down;
-    private readonly Action _changed;
     public Color? Swatch { get; set; }
-    public bool Primary { get; set; }
-
-    public OpsisButton()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        FlatStyle = FlatStyle.Flat; Cursor = Cursors.Hand; Font = OpsisSkin.Body; Height = 30;
-        _changed = () => { if (!IsDisposed) Invalidate(); };
-        OpsisSkin.Changed += _changed;
-    }
-
-    protected override void Dispose(bool disposing) { if (disposing) OpsisSkin.Changed -= _changed; base.Dispose(disposing); }
-    protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hot = true; Invalidate(); }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hot = false; _down = false; Invalidate(); }
-    protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); _down = true; Invalidate(); }
-    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _down = false; Invalidate(); }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
-
-    public override Size GetPreferredSize(Size proposedSize)
-    {
-        var t = TextRenderer.MeasureText(string.IsNullOrEmpty(Text) ? " " : Text, Font);
-        return new Size(Math.Max(34, t.Width + 30), 30);
-    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        var p = OpsisSkin.P; var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
+        if (Swatch == null) { base.OnPaint(e); return; }
+        var p = OpsisSkin.P; var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Parent?.BackColor is { A: > 0 } pb ? pb : p.Bg);
-
-        Color fill = Swatch ?? (Primary ? (_hot ? OpsisSkin.Mix(p.Accent, Color.White, 0.15f) : p.Accent) : _down ? OpsisSkin.Pressed : _hot ? OpsisSkin.Hover : p.Surface);
-        Color fore = Swatch != null ? OpsisSkin.ReadableOn(Swatch.Value) : Primary ? OpsisSkin.ReadableOn(p.Accent) : p.Text;
-        if (!Enabled) { fill = OpsisSkin.Mix(p.Surface, p.Bg, 0.4f); fore = p.Muted; }
-
+        Color fill = Enabled ? Swatch.Value : OpsisSkin.Mix(p.Surface, p.Bg, 0.4f);
         var r = new Rectangle(0, 0, Width - 1, Height - 1);
-        int radius = string.IsNullOrEmpty(Text) ? 8 : Height / 2;
-        using (var path = OpsisSkin.Round(r, radius))
-        using (var br = new SolidBrush(fill)) g.FillPath(br, path);
-        using (var path = OpsisSkin.Round(r, radius))
-        using (var pen = new Pen(Focused && Enabled ? p.Accent : (Swatch != null ? OpsisSkin.Mix(fill, p.Text, 0.35f) : p.Border), Focused ? 1.5f : 1f)) g.DrawPath(pen, path);
-        TextRenderer.DrawText(g, Text, Font, new Rectangle(0, 0, Width, Height), fore,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-    }
-}
-
-internal sealed class OpsisCheck : CheckBox
-{
-    private const int Box = 18;
-    private bool _hot;
-    private readonly Action _changed;
-
-    public OpsisCheck()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        Font = OpsisSkin.Body; Cursor = Cursors.Hand;
-        _changed = () => { if (!IsDisposed) Invalidate(); };
-        OpsisSkin.Changed += _changed;
-    }
-    protected override void Dispose(bool disposing) { if (disposing) OpsisSkin.Changed -= _changed; base.Dispose(disposing); }
-    protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hot = true; Invalidate(); }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hot = false; Invalidate(); }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
-
-    public override Size GetPreferredSize(Size proposedSize)
-    {
-        if (string.IsNullOrEmpty(Text)) return new Size(Box, Box);
-        var t = TextRenderer.MeasureText(Text, Font, new Size(int.MaxValue, 0), TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-        return new Size(Box + 8 + t.Width + 2, Math.Max(Box, t.Height));
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var p = OpsisSkin.P; var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Parent?.BackColor is { A: > 0 } pb ? pb : p.Bg);
-        var box = new Rectangle(0, (Height - Box) / 2, Box, Box);
-        using (var path = OpsisSkin.Round(box, 5))
+        using (var path = OpsisSkin.Round(r, string.IsNullOrEmpty(Text) ? 8 : Height / 2))
         {
-            if (Checked)
-            {
-                using var fill = new SolidBrush(Enabled ? p.Accent : p.Muted); g.FillPath(fill, path);
-                using var pen = new Pen(OpsisSkin.ReadableOn(p.Accent), 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-                g.DrawLines(pen, new[] { new PointF(box.X + Box * 0.22f, box.Y + Box * 0.52f), new PointF(box.X + Box * 0.42f, box.Y + Box * 0.74f), new PointF(box.X + Box * 0.80f, box.Y + Box * 0.28f) });
-            }
-            else
-            {
-                using var fill = new SolidBrush(p.Surface); g.FillPath(fill, path);
-                using var pen = new Pen(_hot && Enabled ? p.Accent : p.Muted, 1.5f); g.DrawPath(pen, path);
-            }
+            using (var br = new SolidBrush(fill)) g.FillPath(br, path);
+            using var pen = new Pen(Focused && Enabled ? p.Accent : OpsisSkin.Mix(fill, p.Text, 0.35f), Focused ? 1.5f : 1f); g.DrawPath(pen, path);
         }
         if (!string.IsNullOrEmpty(Text))
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(Box + 8, 0, Math.Max(0, Width - Box - 8), Height), Enabled ? p.Text : p.Muted,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(0, 0, Width, Height), OpsisSkin.ReadableOn(fill), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
     }
 }
 
@@ -236,129 +171,6 @@ internal sealed class OpsisRadio : RadioButton
 }
 
 /// <summary>Drop-down list (replaces ComboBox): a rounded box that opens a flat menu in the colours of the palette.</summary>
-internal sealed class OpsisCombo : SkinnedControl
-{
-    public sealed class ItemList
-    {
-        private readonly List<object> _l = new();
-        public int Count => _l.Count;
-        public object this[int i] => _l[i];
-        public void Add(object o) => _l.Add(o);
-        public void AddRange(object[] items) => _l.AddRange(items);
-        public void Clear() => _l.Clear();
-        internal IReadOnlyList<object> All => _l;
-    }
-
-    private int _selected = -1;
-    private bool _hot, _open;
-    public ItemList Items { get; } = new();
-    public ComboBoxStyle DropDownStyle { get; set; } = ComboBoxStyle.DropDownList;   // kept for source compatibility
-    public event EventHandler? SelectedIndexChanged;
-
-    public OpsisCombo() { Height = 30; Width = 150; Cursor = Cursors.Hand; }
-
-    public int SelectedIndex
-    {
-        get => _selected;
-        set
-        {
-            int v = value < 0 || value >= Items.Count ? -1 : value;
-            if (v == _selected) return;
-            _selected = v; Invalidate(); SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-    public object? SelectedItem => _selected >= 0 && _selected < Items.Count ? Items[_selected] : null;
-
-    protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hot = true; Invalidate(); }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hot = false; Invalidate(); }
-    protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); if (e.Button == MouseButtons.Left) Open(); }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
-    protected override bool IsInputKey(Keys keyData) => keyData is Keys.Up or Keys.Down || base.IsInputKey(keyData);
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.KeyCode == Keys.Down && _selected < Items.Count - 1) SelectedIndex = _selected + 1;
-        else if (e.KeyCode == Keys.Up && _selected > 0) SelectedIndex = _selected - 1;
-        else if (e.KeyCode is Keys.Space or Keys.Enter) Open();
-    }
-
-    private void Open()
-    {
-        if (!Enabled || Items.Count == 0) return;
-        _open = true; Invalidate();
-        var menu = new ContextMenuStrip { Renderer = new OpsisMenuRenderer(), BackColor = OpsisSkin.P.Surface, ShowImageMargin = false, Font = Font, AutoSize = false };
-        int itemH = TextRenderer.MeasureText("Ag", Font).Height + 10;
-        int visible = Math.Min(Items.Count, 14);
-        for (int i = 0; i < Items.Count; i++)
-        {
-            int idx = i;
-            var item = new ToolStripMenuItem(Items[i]?.ToString() ?? "") { ForeColor = OpsisSkin.P.Text, AutoSize = false, Size = new Size(Width, itemH), Checked = idx == _selected, CheckOnClick = false };
-            item.Click += (_, _) => SelectedIndex = idx;
-            menu.Items.Add(item);
-        }
-        menu.Size = new Size(Width, itemH * visible + 4);
-        if (Items.Count > visible) { menu.AutoScroll = true; }
-        menu.Closed += (_, _) => { _open = false; if (!IsDisposed) Invalidate(); };   // no Dispose here: it is still inside its own close handling
-        menu.Show(this, new Point(0, Height));
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var p = OpsisSkin.P; var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(ParentBack);
-        var r = new Rectangle(0, 0, Width - 1, Height - 1);
-        Color fill = !Enabled ? OpsisSkin.Mix(p.Surface, p.Bg, 0.4f) : _open || _hot ? OpsisSkin.Hover : p.Surface;
-        using (var path = OpsisSkin.Round(r, 7)) { using var br = new SolidBrush(fill); g.FillPath(br, path); using var pen = new Pen(Focused ? p.Accent : p.Border); g.DrawPath(pen, path); }
-        TextRenderer.DrawText(g, SelectedItem?.ToString() ?? "", Font, new Rectangle(10, 0, Width - 32, Height), Enabled ? p.Text : p.Muted,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-        using var chevron = new Pen(p.Muted, 1.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        float cx = Width - 16, cy = Height / 2f - 1.5f;
-        g.DrawLines(chevron, new[] { new PointF(cx - 4, cy - 2), new PointF(cx, cy + 2), new PointF(cx + 4, cy - 2) });
-    }
-}
-
-internal sealed class OpsisMenuRenderer : ToolStripProfessionalRenderer
-{
-    public OpsisMenuRenderer() : base(new Table()) { }
-
-    private sealed class Table : ProfessionalColorTable
-    {
-        public override Color MenuItemSelected => OpsisSkin.Hover;
-        public override Color MenuItemSelectedGradientBegin => OpsisSkin.Hover;
-        public override Color MenuItemSelectedGradientEnd => OpsisSkin.Hover;
-        public override Color MenuItemBorder => OpsisSkin.Hover;
-        public override Color MenuBorder => OpsisSkin.P.Border;
-        public override Color ToolStripDropDownBackground => OpsisSkin.P.Surface;
-        public override Color ImageMarginGradientBegin => OpsisSkin.P.Surface;
-        public override Color ImageMarginGradientMiddle => OpsisSkin.P.Surface;
-        public override Color ImageMarginGradientEnd => OpsisSkin.P.Surface;
-        public override Color SeparatorDark => OpsisSkin.P.Border;
-        public override Color SeparatorLight => OpsisSkin.P.Border;
-    }
-
-    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
-    {
-        e.TextColor = e.Item.Selected && e.Item is ToolStripMenuItem ? OpsisSkin.P.Accent : OpsisSkin.P.Text;
-        base.OnRenderItemText(e);
-    }
-
-    protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
-    {
-        using var pen = new Pen(OpsisSkin.P.Border);
-        e.Graphics.DrawRectangle(pen, 0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
-    }
-
-    protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
-    {
-        var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var pen = new Pen(OpsisSkin.P.Accent, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        var r = e.ImageRectangle;
-        g.DrawLines(pen, new[] { new PointF(r.Left + 2, r.Top + r.Height / 2f), new PointF(r.Left + r.Width / 2.5f, r.Bottom - 3), new PointF(r.Right - 2, r.Top + 2) });
-    }
-}
-
-/// <summary>Rounded text box (replaces TextBox): a native TextBox without its own border inside a painted pill.</summary>
 internal sealed class OpsisText : SkinnedControl
 {
     private readonly TextBox _box = new() { BorderStyle = BorderStyle.None };
@@ -515,11 +327,11 @@ internal static class OpsisBox
         };
         int width = Math.Max(left + label.Width + 24, 300);
         int x = width - 16;
-        OpsisButton? first = null, cancel = null;
+        FlatButton? first = null, cancel = null;
         for (int i = defs.Length - 1; i >= 0; i--)
         {
             var (t, r) = defs[i];
-            var b = new OpsisButton { Text = t, DialogResult = r, AutoSize = false, Width = 92, Height = 30, Top = bottom, Primary = i == 0 };
+            var b = new FlatButton { Text = t, DialogResult = r, AutoSize = false, Width = 92, Height = 30, Top = bottom, Primary = i == 0 };
             x -= b.Width; b.Left = x; x -= 8;
             f.Controls.Add(b);
             if (i == 0) first = b;
@@ -537,8 +349,8 @@ internal static class OpsisBox
         using var f = NewDialog("Opsis Appearance");
         var l = new Label { Text = text, Left = 16, Top = 16, AutoSize = true, MaximumSize = new Size(380, 0), ForeColor = p.Text, BackColor = p.Bg, Font = OpsisSkin.Body };
         var t = new OpsisText { Left = 16, Top = l.Bottom + 8, Width = 368, Text = initial };
-        var ok = new OpsisButton { Text = "OK", DialogResult = DialogResult.OK, AutoSize = false, Width = 92, Height = 30, Primary = true, Top = t.Bottom + 16 };
-        var cancel = new OpsisButton { Text = gr ? "Άκυρο" : "Cancel", DialogResult = DialogResult.Cancel, AutoSize = false, Width = 92, Height = 30, Top = ok.Top };
+        var ok = new FlatButton { Text = "OK", DialogResult = DialogResult.OK, AutoSize = false, Width = 92, Height = 30, Primary = true, Top = t.Bottom + 16 };
+        var cancel = new FlatButton { Text = gr ? "Άκυρο" : "Cancel", DialogResult = DialogResult.Cancel, AutoSize = false, Width = 92, Height = 30, Top = ok.Top };
         cancel.Left = 384 - cancel.Width; ok.Left = cancel.Left - 8 - ok.Width;
         f.Controls.AddRange(new Control[] { l, t, ok, cancel });
         f.ClientSize = new Size(400, ok.Bottom + 16);

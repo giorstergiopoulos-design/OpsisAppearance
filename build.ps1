@@ -23,6 +23,9 @@ dotnet publish src\OpsisAppearance.App\OpsisAppearance.App.csproj -c Release --n
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
 New-Item -ItemType Directory -Force "$root\dist\plugin" | Out-Null
 Copy-Item "$root\src\OpsisAppearance.Plugin\bin\Release\net10.0-windows\OpsisAppearancePlugin.dll" "$root\dist\plugin\"
+# the shared control library MUST sit next to the plugin DLL (without it the plugin fails to load inside Opsis)
+if (-not (Test-Path "$root\libs\Opsis.UI.dll")) { throw "libs\Opsis.UI.dll is missing" }
+Copy-Item "$root\libs\Opsis.UI.dll" "$root\dist\plugin\"
 @"
 Opsis Appearance - plugin for Opsis
 Copy this folder's DLL into  %AppData%\Opsis\plugins\Opsis Appearance\  and restart Opsis.

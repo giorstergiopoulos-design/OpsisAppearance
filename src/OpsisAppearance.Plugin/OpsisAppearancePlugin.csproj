@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OpsisAppearancePlugin</AssemblyName>
     <RootNamespace>OpsisAppearance</RootNamespace>
-    <Version>1.5.1</Version>
+    <Version>1.6.0</Version>
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <Product>Opsis Appearance</Product>
     <Company>Opsis Team</Company>
@@ -21,6 +21,9 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="OpsisAppearance.Tests" />
+    <Using Include="Opsis.UI" />
+    <!-- Shared flat controls of the Opsis family (libs\Opsis.UI.version.txt names the commit). Shipped next to the plugin DLL. -->
+    <Reference Include="Opsis.UI"><HintPath>..\..\libs\Opsis.UI.dll</HintPath><Private>true</Private></Reference>
     <!-- The contract is shared with the host: never copy it next to the plugin (the stand-alone app copies it itself). -->
     <Reference Include="OpsisNewsCrawler.Plugin.Abstractions">
       <HintPath>..\..\libs\OpsisNewsCrawler.Plugin.Abstractions.dll</HintPath>
