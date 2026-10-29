@@ -350,7 +350,7 @@ internal sealed class AppearancePage : UserControl
     private readonly OpsisNumeric _lat = new() { DecimalPlaces = 4, Minimum = -90, Maximum = 90, Width = 90 }, _lon = new() { DecimalPlaces = 4, Minimum = -180, Maximum = 180, Width = 90 }, _offset = new() { Minimum = -180, Maximum = 180, Width = 64 };
     private readonly FlowLayoutPanel _swatches = new() { AutoSize = true, MaximumSize = new Size(760, 0), WrapContents = true };
     private readonly FlatButton _pick = new(), _fromWall = new();
-    private readonly FlatCheckBox _transp = new(), _accentSurf = new(), _centered = new(), _search = new(), _taskView = new(), _widgets = new();
+    private readonly FlatToggle _transp = new(), _accentSurf = new(), _centered = new(), _search = new(), _taskView = new(), _widgets = new();
     private readonly ListBox _themeList = new() { IntegralHeight = false, Height = 190, Width = 440, BorderStyle = BorderStyle.None, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = 38 };
     private readonly Label _themeInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) };
     private readonly FlatButton _themeApply = new(), _themeSave = new(), _themeDelete = new(), _themeImport = new(), _themeExport = new(), _themeFolder = new(), _winThemeApply = new(), _restore = new();
@@ -364,7 +364,8 @@ internal sealed class AppearancePage : UserControl
     private readonly FlatComboBox _corners = new() { Width = 150 }, _titleBars = new() { Width = 150 }, _backdrop = new() { Width = 150 };
     private readonly Label _tCorners = new(), _tTitle = new(), _tBackdrop = new();
     private readonly Label _hShell = new(), _hSlide = new(), _tCombine = new(), _tSlideEvery = new(), _tSlideStyle = new(), _slideInfo = new() { AutoSize = true, MaximumSize = new Size(760, 0) }, _tShellNote = new();
-    private readonly FlatCheckBox _fileExt = new(), _hiddenFiles = new(), _clockSecs = new(), _animations = new(), _slideOn = new(), _slideShuffle = new();
+    private readonly FlatToggle _fileExt = new(), _hiddenFiles = new(), _clockSecs = new(), _animations = new();
+    private readonly FlatCheckBox _slideOn = new(), _slideShuffle = new();
     private readonly FlatComboBox _combine = new() { Width = 230 }, _slideStyle = new() { Width = 150 };
     private readonly OpsisNumeric _slideMin = new() { Minimum = 1, Maximum = 1440, Width = 70, Value = 30 };
     private readonly FlatButton _slideFolder = new(), _slideNext = new(), _restartExplorer = new();
@@ -807,6 +808,19 @@ internal sealed class AppearancePage : UserControl
         _hShell.Text = T("Εξερευνητής και taskbar (συμπεριφορά)", "Explorer & taskbar (behaviour)");
         _fileExt.Text = T("Εμφάνιση επεκτάσεων αρχείων", "Show file extensions"); _hiddenFiles.Text = T("Εμφάνιση κρυφών αρχείων", "Show hidden files");
         _clockSecs.Text = T("Δευτερόλεπτα στο ρολόι", "Seconds in the clock"); _animations.Text = T("Animations παραθύρων", "Window animations");
+        // Γραμμές τύπου Windows 11: ετικέτα + μία πρόταση περιγραφής + ένδειξη «άμεσα / χρειάζεται επανεκκίνηση του Explorer» (κοινό Opsis.UI.FlatToggle)
+        string now = T("Άμεσα", "Immediate"), restart = T("Χρειάζεται Explorer", "Needs Explorer restart");
+        void Row(FlatToggle t, string el, string en, string badge) { t.Description = T(el, en); t.Badge = badge; }
+        Row(_transp, "Διαφανής γραμμή εργασιών και μενού Start.", "Translucent taskbar and Start menu.", now);
+        Row(_accentSurf, "Χρώμα accent στις επιφάνειες του συστήματος.", "Accent colour on system surfaces.", now);
+        Row(_centered, "Τα εικονίδια της γραμμής εργασιών στο κέντρο.", "Taskbar icons in the centre.", now);
+        Row(_search, "Το κουμπί αναζήτησης στη γραμμή εργασιών.", "The search button on the taskbar.", now);
+        Row(_taskView, "Το κουμπί προβολής εργασιών.", "The Task View button.", now);
+        Row(_widgets, "Το κουμπί Widgets (ειδήσεις και καιρός).", "The Widgets button (news and weather).", now);
+        Row(_fileExt, "Δείχνει .txt, .png… στα ονόματα αρχείων.", "Shows .txt, .png… in file names.", restart);
+        Row(_hiddenFiles, "Εμφανίζει τα κρυφά αρχεία και φακέλους.", "Shows hidden files and folders.", restart);
+        Row(_clockSecs, "Δευτερόλεπτα στο ρολόι της γραμμής εργασιών.", "Seconds in the taskbar clock.", restart);
+        Row(_animations, "Κινούμενες μεταβάσεις παραθύρων των Windows.", "Animated Windows window transitions.", now);
         _tCombine.Text = T("Κουμπιά εφαρμογών στο taskbar", "Taskbar buttons");
         _restartExplorer.Text = T("↻ Επανεκκίνηση Εξερευνητή", "↻ Restart Explorer");
         _tShellNote.Text = T("Κάποιες αλλαγές (συνδυασμός κουμπιών, κρυφά αρχεία) φαίνονται αμέσως ή μετά από επανεκκίνηση του Εξερευνητή.", "Some changes (button grouping, hidden files) apply at once or after Explorer is restarted.");
