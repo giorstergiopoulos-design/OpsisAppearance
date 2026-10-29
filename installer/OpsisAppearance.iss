@@ -32,7 +32,9 @@ OutputDir=..\Output
 OutputBaseFilename=OpsisAppearance-Setup
 Compression=lzma2
 SolidCompression=yes
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
+UsePreviousAppDir=no
+AppMutex=OpsisAppearance.SingleInstance,OpsisAppearance.Engine
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
 UninstallDisplayName={#MyAppName}
@@ -80,10 +82,10 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; Tasks: desktopicon; Check: IsStandalone
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExe}"" --minimized"; Tasks: startup; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExe}"" --minimized"; Tasks: startup; Flags: uninsdeletevalue
 ; Remember where the plugin went so the uninstaller removes exactly that folder
-Root: HKCU; Subkey: "Software\Opsis Appearance"; ValueType: string; ValueName: "PluginDir"; ValueData: "{code:PluginDir}"; Check: IsPlugin; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Opsis Appearance"; ValueType: string; ValueName: "Mode"; ValueData: "{code:ModeName}"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Opsis Appearance"; ValueType: string; ValueName: "PluginDir"; ValueData: "{code:PluginDir}"; Check: IsPlugin; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Opsis Appearance"; ValueType: string; ValueName: "Mode"; ValueData: "{code:ModeName}"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#MyAppExe}"; Description: "{#MyAppName}"; Flags: nowait postinstall skipifsilent; Check: IsStandalone
@@ -135,11 +137,22 @@ begin
   if IsPlugin then Result := 'plugin' else Result := 'standalone';
 end;
 
+function OpsisFolder: String;
+var
+  Dir: String;
+begin
+  Result := '';
+  if RegQueryStringValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#OpsisAppId}_is1', 'InstallLocation', Dir) then
+    if DirExists(Dir) then Result := Dir;
+end;
+
 function PluginDir(Param: String): String;
 var
   Root: String;
 begin
   Root := ExpandConstant('{param:PLUGINROOT|}');
+  { Opsis installed in Program Files reads its own plugins folder; otherwise the per-user folder }
+  if (Root = '') and (OpsisFolder <> '') then Root := AddBackslash(OpsisFolder) + 'plugins';
   if Root = '' then Root := ExpandConstant('{userappdata}\Opsis\plugins');
   Result := AddBackslash(Root) + '{#PluginFolder}';
 end;
@@ -151,8 +164,23 @@ begin
   if IsPlugin and ((PageID = wpSelectDir) or (PageID = wpSelectProgramGroup) or (PageID = wpSelectTasks)) then Result := True;
 end;
 
+{ Upgrade from the old per-user install (%LocalAppData%\Programs): its uninstaller runs silently, the old autostart value goes, settings in %AppData% stay }
+procedure RemoveOldPerUserInstall;
+var
+  U: String;
+  Code: Integer;
+begin
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{5D2F7B1C-8E43-4A9B-B6C0-71A3E9D4F528}_is1', 'UninstallString', U) then
+  begin
+    U := RemoveQuotes(U);
+    if (U <> '') and FileExists(U) then Exec(U, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  end;
+  RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  if CurStep = ssInstall then RemoveOldPerUserInstall;
   if (CurStep = ssPostInstall) and IsPlugin and (not WizardSilent) then
     MsgBox(CustomMessage('RestartOpsis'), mbInformation, MB_OK);
 end;
@@ -163,7 +191,7 @@ var
 begin
   { A plugin installed into a custom folder (/PLUGINROOT) is removed too - but only a folder that really is called "Opsis Appearance" }
   if CurUninstallStep = usUninstall then
-    if RegQueryStringValue(HKCU, 'Software\Opsis Appearance', 'PluginDir', Dir) then
+    if RegQueryStringValue(HKLM, 'Software\Opsis Appearance', 'PluginDir', Dir) or RegQueryStringValue(HKCU, 'Software\Opsis Appearance', 'PluginDir', Dir) then
       { ...and only if it really holds our plugin DLL: the registry value is user-writable, so it is never trusted blindly }
       if (Dir <> '') and DirExists(Dir) and (CompareText(ExtractFileName(RemoveBackslashUnlessRoot(Dir)), '{#PluginFolder}') = 0) and FileExists(AddBackslash(Dir) + 'OpsisAppearancePlugin.dll') then
         DelTree(Dir, True, True, True);

@@ -114,6 +114,8 @@ internal sealed class TrayContext : ApplicationContext
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
         _tray = new NotifyIcon { Icon = _icon, Text = "Opsis Appearance", Visible = true, ContextMenuStrip = BuildMenu() };
+        if (!_plugin.EngineActive)
+            _tray.ShowBalloonTip(8000, "Opsis Appearance", SuiteLang.Current() == "el" ? "Το Opsis Appearance τρέχει ήδη (μέσα στο Opsis). Εδώ δεν εφαρμόζεται τίποτα ώστε να μην υπάρχουν δύο εφαρμογές εφέ." : "Opsis Appearance is already running (inside Opsis). Nothing is applied from here so two engines never fight.", ToolTipIcon.Info);
         _tray.DoubleClick += (_, _) => ShowWindow();
         _tray.BalloonTipClicked += (_, _) => OpenReleasePage();
 

@@ -51,10 +51,15 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     public string Id => "giorstergiopoulos.opsisappearance";
     public string Name => "Opsis Appearance";
-    public string Version => "1.5.0";
+    public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.0.0";
+
+    private readonly InstanceGuard _guard = new();
+    /// <summary>False όταν άλλη εφαρμογή Appearance (αυτόνομη ή plugin) ήδη κρατά τον κινητήρα: τότε δεν εφαρμόζεται τίποτα από εδώ.</summary>
+    public bool EngineActive => _guard.IsOwner;
 
     public void Start()
     {
+        if (!_guard.TryAcquire()) { _settings = _store.Load(); return; }       // ο άλλος κάτοχος εφαρμόζει τα εφέ· εδώ μόνο η σελίδα ρυθμίσεων (ανάγνωση)
         _settings = _store.Load();
         ApplySchedule(force: true);
         UpdateTimer();
@@ -65,6 +70,7 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     public void Stop()
     {
+        _guard.Release();
         _barTimer?.Stop(); _barTimer?.Dispose(); _barTimer = null;
         try { _taskbarLook.RestoreAll(); _taskbarShape.RestoreAll(); } catch (Exception) { }     // το taskbar γυρνά ΠΑΝΤΑ στα Windows όταν σταματά το plugin
         _timer?.Stop(); _timer?.Dispose(); _timer = null;

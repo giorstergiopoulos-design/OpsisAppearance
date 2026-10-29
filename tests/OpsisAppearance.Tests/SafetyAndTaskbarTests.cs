@@ -515,3 +515,24 @@ public class FamilyIconTests
         Assert.Null(Opsis.Suite.SuiteResources.AppIconFor("unknown-app"));
     }
 }
+
+public class InstanceGuardTests
+{
+    [Fact] public void SecondGuardWithSameNameIsRefusedUntilReleased()
+    {
+        string name = "OpsisAppearance.Test." + System.Guid.NewGuid().ToString("N");
+        using var a = new InstanceGuard(); using var b = new InstanceGuard();
+        Assert.True(a.TryAcquire(name)); Assert.True(a.IsOwner);
+        bool second = false; var t = new System.Threading.Thread(() => second = b.TryAcquire(name)); t.Start(); t.Join();
+        Assert.False(second); Assert.False(b.IsOwner);
+        a.Release(); bool third = false; var t2 = new System.Threading.Thread(() => { third = b.TryAcquire(name); b.Release(); }); t2.Start(); t2.Join();
+        Assert.True(third);
+    }
+    [Fact] public void InstallerWaitsForTheSameMutexNames()
+    {
+        string iss = System.IO.File.ReadAllText(System.IO.Path.Combine(FindRoot(), "installer", "OpsisAppearance.iss"));
+        Assert.Contains("AppMutex=OpsisAppearance.SingleInstance," + InstanceGuard.DefaultName, iss); Assert.Contains("PrivilegesRequired=admin", iss); Assert.Contains("{autopf}", iss);
+        Assert.Contains("RemoveOldPerUserInstall", iss);
+    }
+    static string FindRoot() { var d = System.AppContext.BaseDirectory; while (d != null && !System.IO.Directory.Exists(System.IO.Path.Combine(d, "installer"))) d = System.IO.Path.GetDirectoryName(d); return d!; }
+}
