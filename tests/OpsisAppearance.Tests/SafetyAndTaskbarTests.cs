@@ -503,3 +503,15 @@ public class TrustedExeTests
         Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(@"C:\Windows\win.ini")); Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(null)); Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(@"C:\nope\x.exe"));
     }
 }
+
+public class FamilyIconTests
+{
+    [Fact] public void EveryCatalogueAppHasAnEmbeddedIcon()
+    {
+        var doc = System.Text.Json.JsonDocument.Parse(Opsis.Suite.SuiteResources.Catalogue());
+        var ids = doc.RootElement.GetProperty("apps").EnumerateArray().Select(a => a.GetProperty("id").GetString()!).ToList();
+        Assert.Equal(7, ids.Count);
+        foreach (var id in ids) { using var ic = Opsis.Suite.SuiteResources.AppIconFor(id, 64); Assert.NotNull(ic); Assert.True(ic!.Width >= 32, id); }
+        Assert.Null(Opsis.Suite.SuiteResources.AppIconFor("unknown-app"));
+    }
+}

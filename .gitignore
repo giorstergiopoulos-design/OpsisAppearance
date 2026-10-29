@@ -6,3 +6,4 @@ obj/
 Output/
 dist/
 .claude/
+release/

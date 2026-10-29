@@ -269,7 +269,7 @@ public sealed class SuiteForm : SuiteFormBase
         var card = new Panel { Width = 440, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(14), Margin = new Padding(6), BackColor = c.Bg };
         card.Paint += (_, e) => { e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; using var pen = new Pen(c.Border); using var p = SuiteUi.Rounded(new Rectangle(0, 0, card.Width - 1, card.Height - 1), 10); e.Graphics.DrawPath(pen, p); };
         var hue = Math.Abs(app.Id.GetHashCode()) % 360;
-        var logo = new AnimatedLogo(me ? Ctx.AppIcon : null, app.Name.Replace("Opsis ", "")[..1].ToUpperInvariant(), me ? c.Accent : FromHsv(hue, 0.6, 0.95), 70) { Location = new Point(14, 14) };
+        var logo = new AnimatedLogo(me ? Ctx.AppIcon : SuiteResources.AppIconFor(app.Id), app.Name.Replace("Opsis ", "")[..1].ToUpperInvariant(), me ? c.Accent : FromHsv(hue, 0.6, 0.95), 70) { Location = new Point(14, 14) };
         card.Controls.Add(logo);
         var col = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Location = new Point(94, 12), Width = 330, BackColor = Color.Transparent };
         var name = SuiteUi.MakeLabel(app.Name + (me ? "   " + SuiteUi.T("Είσαι εδώ", "You are here") : ""), 13, c.Text, true, 320); col.Controls.Add(name);
@@ -362,6 +362,15 @@ public static class SuiteResources
         using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("suite.apps.json");
         if (s == null) return "";
         using var r = new StreamReader(s); return r.ReadToEnd();
+    }
+
+    /// <summary>Το ΠΡΑΓΜΑΤΙΚΟ εικονίδιο οποιασδήποτε εφαρμογής του καταλόγου (ενσωματωμένο στο assembly, ποτέ από το δίκτυο)· null μόνο για άγνωστη εφαρμογή (τότε μπαίνει το γράμμα).</summary>
+    public static Icon? AppIconFor(string appId, int size = 128)
+    {
+        foreach (var sz in new[] { size, 96, 64, 48, 32 })
+            try { using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("suite.icon." + appId + ".ico"); if (s == null) return null; return new Icon(s, new Size(sz, sz)); }
+            catch (Exception) { }
+        return null;
     }
 
     public static Icon? AppIcon(int size = 128)

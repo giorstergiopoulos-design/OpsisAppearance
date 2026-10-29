@@ -8,7 +8,7 @@
 ; The wizard looks for Opsis and proposes the plugin install when it finds it.
 ; Silent installs: /VERYSILENT /MODE=plugin | /MODE=standalone   (and /PLUGINROOT=<folder> instead of %AppData%\Opsis\plugins).
 #define MyAppName "Opsis Appearance"
-#define MyAppVersion "1.5.0"
+#define MyAppVersion "1.5.1"
 #define MyAppExe "OpsisAppearance.exe"
 #define OpsisAppId "A9E8F765-1234-4567-89AB-CDEF01234567"
 #define PluginFolder "Opsis Appearance"
@@ -21,6 +21,9 @@ AppId={{5D2F7B1C-8E43-4A9B-B6C0-71A3E9D4F528}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=Opsis Team
+WizardImageFile=wizard-large.bmp
+WizardSmallImageFile=wizard-small.bmp
+WizardStyle=modern
 SetupIconFile=..\src\OpsisAppearance.App\Assets\app.ico
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}

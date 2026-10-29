@@ -12,7 +12,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-0078D6?logo=windows&logoColor=white" />
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" />
-  <img alt="Version" src="https://img.shields.io/badge/version-1.5.0-00B4D8" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.5.1-00B4D8" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
@@ -52,6 +52,20 @@
 - **TaskbarX**: τα Windows 11 έχουν ήδη κεντραρισμένο taskbar (υπάρχει διακόπτης «Κεντραρισμένο taskbar»)· οι κινούμενες μετατοπίσεις εικονιδίων του TaskbarX δεν υλοποιούνται.
 - Δεν υπάρχει πλήρης ισοδυναμία με τα παραπάνω προγράμματα· υλοποιούνται μόνο όσα αναφέρονται στον πίνακα.
 
+### Στιγμιότυπα / Screenshots
+
+| Σκούρο / Dark | Φωτεινό / Light |
+|---|---|
+| ![Settings dark](docs/img/settings-dark-en.png) | ![Settings light](docs/img/settings-light-en.png) |
+| ![Ρυθμίσεις σκούρο](docs/img/settings-dark-el.png) | ![Ρυθμίσεις φωτεινό](docs/img/settings-light-el.png) |
+| ![Opsis family dark](docs/img/family-dark.png) | ![Opsis family light](docs/img/family-light.png) |
+
+*(Πραγματικά παράθυρα αυτής της έκδοσης: `OpsisAppearance.exe --snapshot` και `--family-snapshot`. / Real windows of this build.)*
+
+### Ασφάλεια / Security
+
+Μοντέλο εμπιστοσύνης, έλεγχος και ανοιχτά θέματα: [SECURITY.md](SECURITY.md). Επαλήθευση λήψης: `Get-FileHash .\OpsisAppearance-Setup.exe -Algorithm SHA256` και σύγκριση με το `.sha256` του release. / Trust model, review results and open items: [SECURITY.md](SECURITY.md); verify downloads by comparing SHA-256 with the `.sha256` file of the release.
+
 ### Εγκατάσταση
 
 Κατέβασε από τα [Releases](../../releases/latest):
@@ -74,7 +88,7 @@
 
 ```powershell
 powershell -File build.ps1          # δοκιμές + standalone + plugin + zips + installer (Inno Setup 7)
-dotnet test OpsisAppearance.sln     # 217 unit tests
+dotnet test OpsisAppearance.sln     # 220 unit tests
 ```
 
 Απαιτείται: Windows 11, [.NET 10 SDK](https://dotnet.microsoft.com/download), [Inno Setup 7](https://jrsoftware.org/isdl.php).

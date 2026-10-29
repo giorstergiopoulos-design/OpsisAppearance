@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.1 — 2026-10-29
+- **Security audit** (details and trust model in SECURITY.md). Fixed: `taskkill` and `explorer.exe` are started by full Windows path (no search-path planting); the family window launches an app only if its registry-provided path is an existing local full-path `.exe`; the uninstaller removes a custom plugin folder only when it is called "Opsis Appearance" and contains our DLL. Reviewed without findings: downloads (HTTPS, allow-list, size, SHA-256, no auto-run), `.opsistheme` import (no zip-slip), `.theme` pre-flight, dependencies (no known vulnerable packages), no secrets stored. Open: plugin DLL integrity is checked by the Opsis host, not by us; binaries are not code-signed.
+- **Real icons of all 7 apps** in the family window (embedded .ico files, never from the network); the letter tile is only the fallback for an unknown app. Test: every catalogue app resolves to an embedded icon. Verified in a screenshot of the real window.
+- **Installer** wizard pages show the app icon (large + small image, modern style).
+- **README**: real dark + light screenshots in English and Greek, family window, SECURITY.md link and SHA-256 verification steps; `docs/img/social-preview.png` (1280x640). Suggested GitHub About: "Change the look of Windows 11 itself - light/dark, accent, taskbar, window effects, themes", topics: windows-11, dotnet, winforms, taskbar, theme, mica, wallpaper, opsis.
+- **Bug audit**: reviewed the settings page in a real run of the snapshots (dark/light, English/Greek); no layout defect found at 100 %. Not done: real 150/200 % DPI run, RTL, clicking every control by UI Automation - moved to 1.6.0.
+- **Languages**: no new UI text was added (the app has Greek and English), existing coverage tests stay green.
+- Tests: 220 unit tests pass (3 new). Repo hygiene: no tracked build outputs or stray files found; `release/` ignored.
+
 ## 1.5.0 — 2026-10-27
 - **Safer Windows themes**: before a `.theme` is applied, its visual style (.msstyles) is checked; if it is not signed by Microsoft and no signature patcher is installed, a warning explains what Windows will do (default answer: No). Opsis still never patches system files.
 - **Opsis look for the whole page and its dialogs**: pill buttons, rounded check boxes, round radio buttons, drop-downs that open a flat menu, rounded text boxes, − / + number boxes, themed message boxes and prompt, dark scroll bars, and a title bar in the page colours for the stand-alone window. Same palette as the host, repainted on every theme change.

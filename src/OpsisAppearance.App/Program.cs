@@ -12,6 +12,8 @@ namespace OpsisAppearance.App;
 /// </summary>
 internal static class Program
 {
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+
     [STAThread]
     private static void Main(string[] args)
     {
@@ -21,7 +23,8 @@ internal static class Program
             ApplicationConfiguration.Initialize();
             var plugin = new OpsisAppearancePlugin();
             plugin.SetLanguage(args.Contains("--el") ? "el" : "en");
-            plugin.SetTheme(true, Color.FromArgb(255, 18, 22, 32).ToArgb(), Color.FromArgb(255, 28, 34, 48).ToArgb(), Color.FromArgb(255, 52, 62, 84).ToArgb(), Color.FromArgb(255, 235, 240, 250).ToArgb(), Color.FromArgb(255, 150, 160, 180).ToArgb(), Color.FromArgb(255, 0, 200, 230).ToArgb(), 1.0);
+            if (args.Contains("--light")) plugin.SetTheme(false, Color.FromArgb(255, 246, 248, 251).ToArgb(), Color.FromArgb(255, 255, 255, 255).ToArgb(), Color.FromArgb(255, 213, 219, 228).ToArgb(), Color.FromArgb(255, 24, 28, 36).ToArgb(), Color.FromArgb(255, 96, 105, 120).ToArgb(), Color.FromArgb(255, 0, 120, 212).ToArgb(), 1.0);
+            else plugin.SetTheme(true, Color.FromArgb(255, 18, 22, 32).ToArgb(), Color.FromArgb(255, 28, 34, 48).ToArgb(), Color.FromArgb(255, 52, 62, 84).ToArgb(), Color.FromArgb(255, 235, 240, 250).ToArgb(), Color.FromArgb(255, 150, 160, 180).ToArgb(), Color.FromArgb(255, 0, 200, 230).ToArgb(), 1.0);
             var page = plugin.GetNavigationItems()[0].CreatePage();
             // Ένα top-level παράθυρο δεν μπορεί να ξεπεράσει το ύψος της οθόνης: η σελίδα μπαίνει σε ένα ψηλό panel-παιδί ώστε να αποδοθεί ολόκληρη.
             using var form = new Form { ClientSize = new Size(820, 900), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
@@ -31,6 +34,19 @@ internal static class Program
             host.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
             bmp.Save(args[at + 1], System.Drawing.Imaging.ImageFormat.Png);
             return;
+        }
+
+        // Test switch: --family-snapshot <file.png> [--light]: renders the "Opsis family" window (offline catalogue) to an image and exits.
+        if (Array.IndexOf(args, "--family-snapshot") is >= 0 and var fa && fa + 1 < args.Length)
+        {
+            ApplicationConfiguration.Initialize();
+            SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+            var ctx = AppearanceSuite.CreateContext(args.Contains("--light") ? SuiteColors.Light : SuiteColors.Dark, null, offline: true); ctx.ForceTop = true;
+            var form = AppearanceSuite.ShowFamilyAsync(ctx).GetAwaiter().GetResult(); form.TopMost = true;
+            var until = DateTime.UtcNow.AddSeconds(3); while (DateTime.UtcNow < until) { Application.DoEvents(); Thread.Sleep(30); }
+            using var bmp = new Bitmap(form.Width, form.Height);
+            using (var g = Graphics.FromImage(bmp)) { var hdc = g.GetHdc(); PrintWindow(form.Handle, hdc, 2); g.ReleaseHdc(hdc); }
+            bmp.Save(args[fa + 1], System.Drawing.Imaging.ImageFormat.Png); return;
         }
 
         // Test switch: --suite-demo shows the welcome guide, the family window and a balloon with slowed-down animations (for screenshots). Uses no settings and no network.
