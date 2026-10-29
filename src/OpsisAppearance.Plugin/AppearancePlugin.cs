@@ -126,6 +126,7 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
         new PluginMenuItem("appearance.open", "Εμφάνιση Windows…", "Windows appearance…", () => NavigationRequested?.Invoke(NavigationKey)),
         // Μόνο εγγραφές μενού (κατά παραγγελία): όταν τρέχει μέσα στο Opsis, το Opsis δείχνει το δικό του splash και τις δικές του ειδοποιήσεις
         new PluginMenuItem("appearance.welcome", "Καλώς ήρθες — οδηγός χρήσης…", "Welcome guide…", () => ShowWelcomeGuide(null)),
+        new PluginMenuItem("appearance.update", "Έλεγχος για ενημερώσεις…", "Check for updates…", () => { try { _ = CheckUpdatesAsync(null, true); } catch (Exception) { } }),
         new PluginMenuItem("appearance.family", "Οι εφαρμογές της οικογένειας Opsis…", "The Opsis family…", () => ShowFamily(null)),
     };
 
@@ -403,6 +404,20 @@ internal sealed class AppearancePage : UserControl
     private readonly OpsisNumeric _barOpacity = new() { Minimum = 0, Maximum = 100, Width = 60, Value = 60 }, _shapeRadius = new() { Minimum = 0, Maximum = 40, Width = 56, Value = 12 }, _shapeMx = new() { Minimum = 0, Maximum = 200, Width = 60, Value = 8 }, _shapeMy = new() { Minimum = 0, Maximum = 60, Width = 56, Value = 4 };
     private readonly Label _hSuite = new();
     private readonly FlatButton _welcomeBtn = new(), _familyBtn = new(), _updBtn = new();
+    // Κατηγορίες όπως στο Crawler: καρτέλες (FlatTabs) που ομαδοποιούν τις ρυθμίσεις· η κάθε ρύθμιση ανήκει σε μία κατηγορία και φαίνεται μόνο όταν είναι ενεργή η καρτέλα της.
+    private readonly FlatTabs _tabs = new() { Width = 780, Height = 38, Margin = new Padding(0, 6, 0, 6) };
+    private readonly List<(Control Control, int Category)> _placed = new();
+    private int _cat;
+    private void Put(Control c) { _placed.Add((c, _cat)); _flow.Controls.Add(c); }
+    public void SelectTab(int index) { _tabs.SelectedIndex = Math.Clamp(index, 0, _tabs.Tabs.Count - 1); ApplyTab(); }
+    private void ApplyTab()
+    {
+        _flow.SuspendLayout();
+        foreach (var (c, cat) in _placed) c.Visible = cat < 0 || cat == _tabs.SelectedIndex || ReferenceEquals(c, _tabs);
+        _flow.ResumeLayout(true);
+    }
+    private static readonly string[] TabEl = { "Θέμα και χρώμα", "Taskbar", "Παράθυρα", "Σύστημα", "Wallpaper και θέματα", "Οδηγός και ενημερώσεις" };
+    private static readonly string[] TabEn = { "Theme & colour", "Taskbar", "Windows", "System", "Wallpaper & themes", "Guide & updates" };
     private readonly SwatchButton _barTint = new();
     private readonly FlatButton _capColor = new(), _capText = new(), _capClear = new(), _rpNow = new(), _openBackups = new();
     private readonly OpsisText _exclude = new() { Width = 420 };
@@ -431,57 +446,69 @@ internal sealed class AppearancePage : UserControl
 
         OpsisSkin.Greek = _greek; OpsisSkin.Apply(_pal);
         OpsisSkin.ThemeScrollbars(_flow); OpsisSkin.ThemeScrollbars(_themeList);
-        _flow.Controls.Add(_status);
-        _flow.Controls.Add(_hSchedule);
-        _flow.Controls.Add(Row(_manual, _autoSun, _autoFixed));
-        _flow.Controls.Add(Row(_lightNow, _darkNow));
-        _flow.Controls.Add(Row(_tLight, _lightAt, _tDark, _darkAt));
-        _flow.Controls.Add(Row(_tLat, _lat, _tLon, _lon, _tOff, _offset));
-        _flow.Controls.Add(_hAccent);
-        _flow.Controls.Add(_swatches);
-        _flow.Controls.Add(Row(_pick, _fromWall));
-        _flow.Controls.Add(_hTaskbar);
-        _flow.Controls.Add(Row(_transp, _accentSurf));
-        _flow.Controls.Add(Row(_centered, _search, _taskView, _widgets));
-        _flow.Controls.Add(_hEffects);
-        _flow.Controls.Add(Row(_borderCheck, _borderColor));
-        _flow.Controls.Add(Row(_tCorners, _corners, _tTitle, _titleBars));
-        _flow.Controls.Add(Row(_tBackdrop, _backdrop));
-        _flow.Controls.Add(Row(_hideTaskbar));
-        _flow.Controls.Add(_hBar);
-        _flow.Controls.Add(Row(_barOn));
-        _flow.Controls.Add(Row(_tBarN, _barNormal, _tBarM, _barMax, _tBarS, _barStart));
-        _flow.Controls.Add(Row(_barTint, _tBarOp, _barOpacity));
-        _flow.Controls.Add(Row(_shapeOn, _tShapeR, _shapeRadius, _tShapeX, _shapeMx, _tShapeY, _shapeMy));
-        _flow.Controls.Add(_barNote);
-        _flow.Controls.Add(_hEvery);
-        _flow.Controls.Add(Row(_tExclude, _exclude));
-        _flow.Controls.Add(Row(_capColor, _capText, _capClear));
-        _flow.Controls.Add(_everyNote);
-        _flow.Controls.Add(_hSafety);
-        _flow.Controls.Add(Row(_rpCheck));
-        _flow.Controls.Add(Row(_rpNow, _openBackups));
-        _flow.Controls.Add(_safetyInfo);
-        _flow.Controls.Add(_hShell);
-        _flow.Controls.Add(Row(_fileExt, _hiddenFiles, _clockSecs, _animations));
-        _flow.Controls.Add(Row(_tCombine, _combine, _restartExplorer));
-        _flow.Controls.Add(_tShellNote);
-        _flow.Controls.Add(_hSlide);
-        _flow.Controls.Add(Row(_slideOn, _slideShuffle));
-        _flow.Controls.Add(Row(_slideFolder, _tSlideEvery, _slideMin, _tSlideStyle, _slideStyle, _slideNext));
-        _flow.Controls.Add(_slideInfo);
-        _flow.Controls.Add(_hLooks);
-        _flow.Controls.Add(_themeList);
-        _flow.Controls.Add(_themeInfo);
-        _flow.Controls.Add(Row(_themeApply, _themeSave, _themeDelete));
-        _flow.Controls.Add(Row(_themeImport, _themeExport, _themeFolder));
-        _flow.Controls.Add(_hWinThemes);
-        _flow.Controls.Add(Row(_winThemes, _winThemeApply));
-        _flow.Controls.Add(_tWinThemes);
-        _flow.Controls.Add(_hSuite);
-        _flow.Controls.Add(Row(_welcomeBtn, _familyBtn, _updBtn));
-        _flow.Controls.Add(Row(_restore));
-        _flow.Controls.Add(_tSafety);
+        _cat = -1; Put(_status); _cat = 0;
+        Put(_tabs);
+        _cat = 0;
+        Put(_hSchedule);
+        Put(Row(_manual, _autoSun, _autoFixed));
+        Put(Row(_lightNow, _darkNow));
+        Put(Row(_tLight, _lightAt, _tDark, _darkAt));
+        Put(Row(_tLat, _lat, _tLon, _lon, _tOff, _offset));
+        Put(_hAccent);
+        Put(_swatches);
+        Put(Row(_pick, _fromWall));
+        _cat = 1;
+        Put(_hTaskbar);
+        Put(Row(_transp, _accentSurf));
+        Put(Row(_centered, _search, _taskView, _widgets));
+        _cat = 2;
+        Put(_hEffects);
+        Put(Row(_borderCheck, _borderColor));
+        Put(Row(_tCorners, _corners, _tTitle, _titleBars));
+        Put(Row(_tBackdrop, _backdrop));
+        Put(Row(_hideTaskbar));
+        _cat = 1;
+        Put(_hBar);
+        Put(Row(_barOn));
+        Put(Row(_tBarN, _barNormal, _tBarM, _barMax, _tBarS, _barStart));
+        Put(Row(_barTint, _tBarOp, _barOpacity));
+        Put(Row(_shapeOn, _tShapeR, _shapeRadius, _tShapeX, _shapeMx, _tShapeY, _shapeMy));
+        Put(_barNote);
+        _cat = 2;
+        Put(_hEvery);
+        Put(Row(_tExclude, _exclude));
+        Put(Row(_capColor, _capText, _capClear));
+        Put(_everyNote);
+        _cat = 3;
+        Put(_hSafety);
+        Put(Row(_rpCheck));
+        Put(Row(_rpNow, _openBackups));
+        Put(_safetyInfo);
+        _cat = 3;
+        Put(_hShell);
+        Put(Row(_fileExt, _hiddenFiles, _clockSecs, _animations));
+        Put(Row(_tCombine, _combine, _restartExplorer));
+        Put(_tShellNote);
+        _cat = 4;
+        Put(_hSlide);
+        Put(Row(_slideOn, _slideShuffle));
+        Put(Row(_slideFolder, _tSlideEvery, _slideMin, _tSlideStyle, _slideStyle, _slideNext));
+        Put(_slideInfo);
+        _cat = 4;
+        Put(_hLooks);
+        Put(_themeList);
+        Put(_themeInfo);
+        Put(Row(_themeApply, _themeSave, _themeDelete));
+        Put(Row(_themeImport, _themeExport, _themeFolder));
+        _cat = 4;
+        Put(_hWinThemes);
+        Put(Row(_winThemes, _winThemeApply));
+        Put(_tWinThemes);
+        _cat = 5;
+        Put(_hSuite);
+        Put(Row(_welcomeBtn, _familyBtn, _updBtn));
+        Put(Row(_restore));
+        Put(_tSafety);
 
         foreach (int rgb in SwatchColors)
         {
@@ -563,6 +590,7 @@ internal sealed class AppearancePage : UserControl
         _openBackups.Click += (_, _) => { try { Directory.CreateDirectory(_p.Vault.Root); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_p.Vault.Root) { UseShellExecute = true }); } catch (Exception) { } };
         _welcomeBtn.Click += (_, _) => _p.ShowWelcomeGuide(FindForm());
         _familyBtn.Click += (_, _) => _p.ShowFamily(FindForm());
+        _tabs.SelectedIndexChanged += (_, _) => ApplyTab();
         _updBtn.Click += async (_, _) => await _p.CheckUpdatesAsync(FindForm(), true);
         _fileExt.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowFileExtensions = _fileExt.Checked }));
         _hiddenFiles.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowHiddenFiles = _hiddenFiles.Checked }));
@@ -817,6 +845,7 @@ internal sealed class AppearancePage : UserControl
         _loading = true; Fill(_corners, cs); Fill(_titleBars, ds); Fill(_backdrop, bs); _loading = false;
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
         _hSuite.Text = T("Οδηγός και οικογένεια Opsis", "Guide and the Opsis family");
+        _tabs.SetTabs(_greek ? TabEl : TabEn, Math.Max(0, _tabs.SelectedIndex));
         _welcomeBtn.Text = T("Καλώς ήρθες — οδηγός χρήσης…", "Welcome guide…"); _familyBtn.Text = T("Οι εφαρμογές της οικογένειας Opsis…", "The Opsis family…"); _updBtn.Text = T("Έλεγχος για ενημερώσεις…", "Check for updates…");
         _hBar.Text = T("Εμφάνιση taskbar (διαφάνεια, χρώμα, στρογγυλά άκρα)", "Taskbar look (transparency, colour, rounded edges)");
         _barOn.Text = T("Εφαρμογή εμφάνισης taskbar", "Apply a taskbar look");

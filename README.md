@@ -62,6 +62,8 @@
 
 *(Πραγματικά παράθυρα αυτής της έκδοσης: `OpsisAppearance.exe --snapshot` και `--family-snapshot`. / Real windows of this build.)*
 
+Καρτέλες / Tabs: ![Taskbar](docs/img/tab1-dark-el.png)
+
 ### Ασφάλεια / Security
 
 Μοντέλο εμπιστοσύνης, έλεγχος και ανοιχτά θέματα: [SECURITY.md](SECURITY.md). Επαλήθευση λήψης: `Get-FileHash .\OpsisAppearance-Setup.exe -Algorithm SHA256` και σύγκριση με το `.sha256` του release. / Trust model, review results and open items: [SECURITY.md](SECURITY.md); verify downloads by comparing SHA-256 with the `.sha256` file of the release.

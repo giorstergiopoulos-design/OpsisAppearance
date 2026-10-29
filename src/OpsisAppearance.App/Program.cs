@@ -14,6 +14,8 @@ internal static class Program
 {
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
 
+    private static void SelectTabOf(object page, int index) { var m = page.GetType().GetMethod("SelectTab"); m?.Invoke(page, new object[] { index }); }
+
     [STAThread]
     private static void Main(string[] args)
     {
@@ -27,6 +29,7 @@ internal static class Program
             if (args.Contains("--light")) plugin.SetTheme(false, Color.FromArgb(255, 246, 248, 251).ToArgb(), Color.FromArgb(255, 255, 255, 255).ToArgb(), Color.FromArgb(255, 213, 219, 228).ToArgb(), Color.FromArgb(255, 24, 28, 36).ToArgb(), Color.FromArgb(255, 96, 105, 120).ToArgb(), Color.FromArgb(255, 0, 120, 212).ToArgb(), 1.0);
             else plugin.SetTheme(true, Color.FromArgb(255, 18, 22, 32).ToArgb(), Color.FromArgb(255, 28, 34, 48).ToArgb(), Color.FromArgb(255, 52, 62, 84).ToArgb(), Color.FromArgb(255, 235, 240, 250).ToArgb(), Color.FromArgb(255, 150, 160, 180).ToArgb(), Color.FromArgb(255, 0, 200, 230).ToArgb(), 1.0);
             var page = plugin.GetNavigationItems()[0].CreatePage();
+            if (Array.IndexOf(args, "--tab") is >= 0 and var ti && ti + 1 < args.Length && int.TryParse(args[ti + 1], out var tabIndex)) SelectTabOf(page, tabIndex);
             // Ένα top-level παράθυρο δεν μπορεί να ξεπεράσει το ύψος της οθόνης: η σελίδα μπαίνει σε ένα ψηλό panel-παιδί ώστε να αποδοθεί ολόκληρη.
             using var form = new Form { ClientSize = new Size(820, 900), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
             var host = new Panel { Location = Point.Empty, Size = new Size(820, 3200) };
