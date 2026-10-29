@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OpsisAppearancePlugin</AssemblyName>
     <RootNamespace>OpsisAppearance</RootNamespace>
-    <Version>1.6.0</Version>
+    <Version>1.7.0</Version>
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <Product>Opsis Appearance</Product>
     <Company>Opsis Team</Company>

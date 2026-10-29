@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.0 — 2026-10-29
+- **Windows 11 style settings rows** (shared Opsis.UI 0.2.1 `FlatToggle`): label + one-sentence description on the left, switch on the right, and a badge "Immediate" / "Needs Explorer restart" for the taskbar and Explorer settings (Greek and English).
+- **One engine at a time**: the stand-alone app and the Opsis plugin share the named mutex `OpsisAppearance.Engine`; whoever starts first applies the effects, the other one applies nothing and says so (tray notice). The installer waits for both mutexes (`AppMutex`). Tests: `InstanceGuardTests`.
+- **Installer in Program Files**: `PrivilegesRequired=admin`, `{autopf}`, start-up value in HKLM; an old per-user install is detected and removed silently (settings in %AppData% stay, old start-up value deleted); plugin folder = `<Opsis folder>\plugins\Opsis Appearance` when Opsis is installed in Program Files, else `%AppData%\Opsis\plugins`. **NOT VERIFIED on a clean/dirty Windows VM**: the compiled installer was not run (upgrade over a per-user install, mode switching, uninstall).
+- **Unified update popup** (same as the other Opsis apps): 30 s after start and every 24 h (ETag, once per version) a popup with Install / Later / Skip this version / What's new; Install downloads only from this repository's release, checks SHA-256 (refuses and deletes on a mismatch, never runs without a digest), then installs silently after the app closes (the helper re-checks the hash) and reopens the app. 7 new tests with a fake HTTP layer.
+- Fixed: the plugin reported a hard-coded version 1.5.0; it now reads its assembly version.
+- CI: `.github/workflows/windows-ci.yml` runs the unit tests and renders the settings page in dark/light, English/Greek.
+- **Remainder for 1.7.1**: a "Reset" button per card and a settings search box; the family window / welcome guide texts in other languages; clean-VM test of the installer; real 150/200 % DPI and RTL of the new rows; screenshots of the popup.
+
 ## 1.6.0 — 2026-10-29
 - **Shared control library Opsis.UI** (libs/Opsis.UI.dll, commit in libs/Opsis.UI.version.txt) replaces our own copies: `OpsisCheck` -> `FlatCheckBox`, `OpsisButton` -> `FlatButton`, `OpsisCombo` (+ `OpsisMenuRenderer`) -> `FlatComboBox`. Deleted from OpsisControls.cs; only the colour-swatch button (`SwatchButton`, a thin subclass of FlatButton) and the radio / text / numeric boxes remain here. The colours reach the library through one live adapter (`OpsisSkin.Tokens`), so the Opsis host theme still drives everything.
 - Gains from the library: keyboard focus ring, Space toggles, indeterminate state, DPI-aware sizes, right-to-left mirroring, arrow/Home/End keys.

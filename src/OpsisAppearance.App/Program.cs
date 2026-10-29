@@ -152,7 +152,9 @@ internal sealed class TrayContext : ApplicationContext
             return;
         }
         _pendingUrl = info.Url;
-        _tray.ShowBalloonTip(12000, "Opsis Appearance " + info.Tag, _greek ? "Διαθέσιμη νέα έκδοση — κάνε κλικ για να δεις τι νέο υπάρχει." : "A new version is available — click to see what's new.", ToolTipIcon.Info);
+        _updater.MarkNotified(info.Tag);                                                // μία ειδοποίηση ανά έκδοση
+        using (var prompt = new UpdatePrompt(_suite, _updater, info)) { prompt.ShowDialog(); if (prompt.InstallStarted) { ExitThread(); return; } }
+        return;
         _updater.MarkNotified(info.Tag);
     }
 
