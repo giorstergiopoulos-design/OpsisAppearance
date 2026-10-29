@@ -323,7 +323,7 @@ public sealed class SuiteForm : SuiteFormBase
     private void OpenApp(SuiteApp app)
     {
         if (!_info.TryGetValue(app.Id, out var i) || string.IsNullOrEmpty(i.St.Path) || !File.Exists(i.St.Path)) return;
-        try { Process.Start(new ProcessStartInfo(i.St.Path) { UseShellExecute = true }); } catch (Exception) { }
+        try { if (OpsisAppearance.TrustedExe.IsLaunchable(i.St.Path)) Process.Start(new ProcessStartInfo(i.St.Path) { UseShellExecute = true }); } catch (Exception) { }
     }
 
     private async Task InstallAsync(SuiteApp app, Button btn)
@@ -345,7 +345,7 @@ public sealed class SuiteForm : SuiteFormBase
             if (res.Status == DownloadStatus.Ok)
             {
                 if (MessageBox.Show(this, SuiteUi.T("Κατέβηκε και επαληθεύτηκε (SHA-256).\n\n", "Downloaded and verified (SHA-256).\n\n") + res.Path + "\n\n" + SuiteUi.T("Να ανοίξει ο φάκελος;", "Open the folder?"), app.Name, MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-                    try { Process.Start("explorer.exe", "/select,\"" + res.Path + "\""); } catch (Exception) { }
+                    try { Process.Start(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "/select,\"" + res.Path + "\""); } catch (Exception) { }
             }
             else if (res.Status == DownloadStatus.Mismatch) MessageBox.Show(this, SuiteUi.T("ΑΠΟΡΡΙΦΘΗΚΕ: το SHA-256 του αρχείου δεν ταιριάζει με το αναμενόμενο. Το αρχείο διαγράφηκε.", "REFUSED: the file's SHA-256 does not match the expected value. The file was deleted."), app.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             else MessageBox.Show(this, SuiteUi.T("Η λήψη απέτυχε. Δοκίμασε από τη σελίδα της έκδοσης.", "The download failed. Try the release page."), app.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);

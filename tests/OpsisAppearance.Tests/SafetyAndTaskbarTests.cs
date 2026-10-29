@@ -486,3 +486,20 @@ public class EverywhereTests
         Assert.Null(s.CaptionRgb);
     }
 }
+
+public class TrustedExeTests
+{
+    [Fact] public void SystemExecutablesUseFullPaths()
+    {
+        Assert.True(System.IO.Path.IsPathFullyQualified(OpsisAppearance.TrustedExe.System32("taskkill.exe")));
+        Assert.EndsWith(@"System32\taskkill.exe", OpsisAppearance.TrustedExe.System32("taskkill.exe"), System.StringComparison.OrdinalIgnoreCase);
+        Assert.True(OpsisAppearance.TrustedExe.IsBareName("taskkill")); Assert.False(OpsisAppearance.TrustedExe.IsBareName(@"C:\x\a.exe"));
+    }
+    [Fact] public void OnlyExistingLocalExesLaunchable()
+    {
+        string exe = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.System), "notepad.exe");
+        Assert.True(OpsisAppearance.TrustedExe.IsLaunchable(exe));
+        Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(@"\server\share\x.exe")); Assert.False(OpsisAppearance.TrustedExe.IsLaunchable("notepad.exe"));
+        Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(@"C:\Windows\win.ini")); Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(null)); Assert.False(OpsisAppearance.TrustedExe.IsLaunchable(@"C:\nope\x.exe"));
+    }
+}

@@ -197,3 +197,21 @@ public static class InvasiveGuard
         return r;
     }
 }
+
+/// <summary>Εκτελέσιμα των Windows μόνο με πλήρη διαδρομή από τον φάκελο των Windows — ποτέ μέσω PATH ή του τρέχοντος φακέλου (αποφυγή «binary planting»).</summary>
+public static class TrustedExe
+{
+    public static string Windows(string exe) => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), exe);
+    public static string System32(string exe) => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), exe);
+    /// <summary>Μόνο υπαρκτό τοπικό .exe με πλήρη διαδρομή (όχι UNC/URL/συντόμευση): η διαδρομή προέρχεται από registry του χρήστη, άρα δεν εμπιστεύεται τυφλά.</summary>
+    public static bool IsLaunchable(string? path)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path) || path.StartsWith(@"\\")) return false;
+            return string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(path);
+        }
+        catch (Exception) { return false; }
+    }
+    public static bool IsBareName(string exe) => exe.IndexOfAny(new[] { (char)92, (char)47, (char)58 }) < 0;
+}

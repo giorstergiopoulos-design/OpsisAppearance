@@ -537,7 +537,7 @@ internal sealed class AppearancePage : UserControl
         {
             var ask = _greek ? "Ο Εξερευνητής των Windows θα κλείσει και θα ξανανοίξει (η γραμμή εργασιών θα εξαφανιστεί για λίγα δευτερόλεπτα). Συνέχεια;" : "Windows Explorer will close and start again (the taskbar disappears for a few seconds). Continue?";
             if (OpsisBox.Show(this, ask, "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-            try { using var k = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskkill", "/f /im explorer.exe") { CreateNoWindow = true, UseShellExecute = false }); k?.WaitForExit(5000); }
+            try { using var k = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(TrustedExe.System32("taskkill.exe"), "/f /im explorer.exe") { CreateNoWindow = true, UseShellExecute = false }); k?.WaitForExit(5000); }
             catch (Exception ex) { OpsisBox.Show(this, ex.Message, "Opsis Appearance"); }
         };
         _slideOn.Click += (_, _) =>

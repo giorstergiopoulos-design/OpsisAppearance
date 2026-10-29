@@ -161,6 +161,7 @@ begin
   { A plugin installed into a custom folder (/PLUGINROOT) is removed too - but only a folder that really is called "Opsis Appearance" }
   if CurUninstallStep = usUninstall then
     if RegQueryStringValue(HKCU, 'Software\Opsis Appearance', 'PluginDir', Dir) then
-      if (Dir <> '') and DirExists(Dir) and (CompareText(ExtractFileName(RemoveBackslashUnlessRoot(Dir)), '{#PluginFolder}') = 0) then
+      { ...and only if it really holds our plugin DLL: the registry value is user-writable, so it is never trusted blindly }
+      if (Dir <> '') and DirExists(Dir) and (CompareText(ExtractFileName(RemoveBackslashUnlessRoot(Dir)), '{#PluginFolder}') = 0) and FileExists(AddBackslash(Dir) + 'OpsisAppearancePlugin.dll') then
         DelTree(Dir, True, True, True);
 end;
