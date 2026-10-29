@@ -53,6 +53,9 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
     public string Name => "Opsis Appearance";
     public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.0.0";
 
+    /// <summary>true όταν το plugin τρέχει μέσα στο Opsis (τότε αυτό κάνει τον έλεγχο ενημέρωσης)· το αυτόνομο πρόγραμμα το βάζει false και ελέγχει μόνο του.</summary>
+    public static bool HostedByOpsis = true;
+    private System.Windows.Forms.Timer? _updTimer;
     private readonly InstanceGuard _guard = new();
     /// <summary>False όταν άλλη εφαρμογή Appearance (αυτόνομη ή plugin) ήδη κρατά τον κινητήρα: τότε δεν εφαρμόζεται τίποτα από εδώ.</summary>
     public bool EngineActive => _guard.IsOwner;
@@ -65,11 +68,13 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
         UpdateTimer();
         UpdateSlideTimer();
         ApplyEffects();
-        ApplyTaskbar(askForRestorePoint: false);       // ό,τι ήταν ήδη ενεργό εφαρμόζεται ξανά· ΔΕΝ ζητά νέο σημείο επαναφοράς σε κάθε εκκίνηση
+        ApplyTaskbar(askForRestorePoint: false);
+        if (HostedByOpsis) StartUpdateChecks();       // ό,τι ήταν ήδη ενεργό εφαρμόζεται ξανά· ΔΕΝ ζητά νέο σημείο επαναφοράς σε κάθε εκκίνηση
     }
 
     public void Stop()
     {
+        _updTimer?.Stop(); _updTimer?.Dispose(); _updTimer = null;
         _guard.Release();
         _barTimer?.Stop(); _barTimer?.Dispose(); _barTimer = null;
         try { _taskbarLook.RestoreAll(); _taskbarShape.RestoreAll(); } catch (Exception) { }     // το taskbar γυρνά ΠΑΝΤΑ στα Windows όταν σταματά το plugin
@@ -135,6 +140,28 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
 
     /// <summary>Ο οδηγός χρήσης (κατά παραγγελία). Δεν ξεκινά ποτέ μόνος του μέσα από το plugin.</summary>
     internal void ShowWelcomeGuide(Form? owner) { try { Opsis.Suite.AppearanceSuite.ShowWelcome(SuiteCtx(owner)); } catch (Exception) { } }
+
+    // ---- ενημερώσεις όταν το plugin τρέχει μέσα στο Opsis: 30 s μετά την εκκίνηση και ανά 24 h (ETag, μία ειδοποίηση ανά έκδοση), popup Εγκατάσταση / Αργότερα / Παράλειψη / Τι νέο ----
+    private void StartUpdateChecks()
+    {
+        if (_updTimer != null) return;
+        _updTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
+        _updTimer.Tick += async (_, _) => { _updTimer!.Interval = 24 * 3600 * 1000; await CheckUpdatesAsync(null, false); };
+        _updTimer.Start();
+    }
+
+    internal async Task CheckUpdatesAsync(Form? owner, bool force)
+    {
+        try
+        {
+            var ctx = SuiteCtx(owner); var updater = new Opsis.Suite.UpdateChecker(ctx.Http, ctx.Store, () => DateTime.UtcNow, Opsis.Suite.AppearanceSuite.Owner, Opsis.Suite.AppearanceSuite.Repo, Opsis.Suite.AppearanceSuite.Version);
+            var info = await updater.CheckAsync(force);
+            if (info == null) { if (force) OpsisBox.Show(owner, _greek ? "Δεν υπάρχει νεότερη έκδοση (ή δεν ήταν δυνατός ο έλεγχος)." : "No newer version (or the check was not possible).", "Opsis Appearance"); return; }
+            updater.MarkNotified(info.Tag);
+            using var prompt = new UpdatePrompt(ctx, updater, info, hostedByOpsis: HostedByOpsis); prompt.ShowDialog(owner);
+        }
+        catch (Exception) { }
+    }
 
     internal async void ShowFamily(Form? owner) { try { await Opsis.Suite.AppearanceSuite.ShowFamilyAsync(SuiteCtx(owner)); } catch (Exception) { } }
 
@@ -375,7 +402,7 @@ internal sealed class AppearancePage : UserControl
     private readonly FlatComboBox _barNormal = new() { Width = 150 }, _barMax = new() { Width = 150 }, _barStart = new() { Width = 150 };
     private readonly OpsisNumeric _barOpacity = new() { Minimum = 0, Maximum = 100, Width = 60, Value = 60 }, _shapeRadius = new() { Minimum = 0, Maximum = 40, Width = 56, Value = 12 }, _shapeMx = new() { Minimum = 0, Maximum = 200, Width = 60, Value = 8 }, _shapeMy = new() { Minimum = 0, Maximum = 60, Width = 56, Value = 4 };
     private readonly Label _hSuite = new();
-    private readonly FlatButton _welcomeBtn = new(), _familyBtn = new();
+    private readonly FlatButton _welcomeBtn = new(), _familyBtn = new(), _updBtn = new();
     private readonly SwatchButton _barTint = new();
     private readonly FlatButton _capColor = new(), _capText = new(), _capClear = new(), _rpNow = new(), _openBackups = new();
     private readonly OpsisText _exclude = new() { Width = 420 };
@@ -395,7 +422,7 @@ internal sealed class AppearancePage : UserControl
         _texts.AddRange(new[] { _tBarN, _tBarM, _tBarS, _tBarOp, _tShapeR, _tShapeX, _tShapeY, _tExclude, _barNote, _everyNote, _safetyInfo, _tLight, _tDark, _tLat, _tLon, _tOff, _tSafety, _tCorners, _tTitle, _tBackdrop, _tCombine, _tSlideEvery, _tSlideStyle, _slideInfo, _tShellNote });
         _radios.AddRange(new[] { _manual, _autoSun, _autoFixed });
         _checks.AddRange(new[] { _barOn, _shapeOn, _rpCheck, _transp, _accentSurf, _centered, _search, _taskView, _widgets, _borderCheck, _hideTaskbar, _fileExt, _hiddenFiles, _clockSecs, _animations, _slideOn, _slideShuffle });
-        _buttons.AddRange(new[] { _welcomeBtn, _familyBtn, _barTint, _capColor, _capText, _capClear, _rpNow, _openBackups, _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
+        _buttons.AddRange(new[] { _welcomeBtn, _familyBtn, _updBtn, _barTint, _capColor, _capText, _capClear, _rpNow, _openBackups, _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
         foreach (var h in _headings) { h.AutoSize = true; h.Font = new Font("Segoe UI Semibold", 12f); h.Margin = new Padding(0, 14, 0, 4); }
         foreach (var t in _texts) { t.AutoSize = true; t.Margin = new Padding(0, 6, 4, 0); }
         _barNote.MaximumSize = new Size(760, 0); _everyNote.MaximumSize = new Size(760, 0);
@@ -452,7 +479,7 @@ internal sealed class AppearancePage : UserControl
         _flow.Controls.Add(Row(_winThemes, _winThemeApply));
         _flow.Controls.Add(_tWinThemes);
         _flow.Controls.Add(_hSuite);
-        _flow.Controls.Add(Row(_welcomeBtn, _familyBtn));
+        _flow.Controls.Add(Row(_welcomeBtn, _familyBtn, _updBtn));
         _flow.Controls.Add(Row(_restore));
         _flow.Controls.Add(_tSafety);
 
@@ -536,6 +563,7 @@ internal sealed class AppearancePage : UserControl
         _openBackups.Click += (_, _) => { try { Directory.CreateDirectory(_p.Vault.Root); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_p.Vault.Root) { UseShellExecute = true }); } catch (Exception) { } };
         _welcomeBtn.Click += (_, _) => _p.ShowWelcomeGuide(FindForm());
         _familyBtn.Click += (_, _) => _p.ShowFamily(FindForm());
+        _updBtn.Click += async (_, _) => await _p.CheckUpdatesAsync(FindForm(), true);
         _fileExt.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowFileExtensions = _fileExt.Checked }));
         _hiddenFiles.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowHiddenFiles = _hiddenFiles.Checked }));
         _clockSecs.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ClockSeconds = _clockSecs.Checked }));
@@ -789,7 +817,7 @@ internal sealed class AppearancePage : UserControl
         _loading = true; Fill(_corners, cs); Fill(_titleBars, ds); Fill(_backdrop, bs); _loading = false;
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
         _hSuite.Text = T("Οδηγός και οικογένεια Opsis", "Guide and the Opsis family");
-        _welcomeBtn.Text = T("Καλώς ήρθες — οδηγός χρήσης…", "Welcome guide…"); _familyBtn.Text = T("Οι εφαρμογές της οικογένειας Opsis…", "The Opsis family…");
+        _welcomeBtn.Text = T("Καλώς ήρθες — οδηγός χρήσης…", "Welcome guide…"); _familyBtn.Text = T("Οι εφαρμογές της οικογένειας Opsis…", "The Opsis family…"); _updBtn.Text = T("Έλεγχος για ενημερώσεις…", "Check for updates…");
         _hBar.Text = T("Εμφάνιση taskbar (διαφάνεια, χρώμα, στρογγυλά άκρα)", "Taskbar look (transparency, colour, rounded edges)");
         _barOn.Text = T("Εφαρμογή εμφάνισης taskbar", "Apply a taskbar look");
         _tBarN.Text = T("Κανονικά", "Normal"); _tBarM.Text = T("Με μεγιστοποιημένο παράθυρο", "With a maximized window"); _tBarS.Text = T("Όταν ανοίγει το Start", "When Start is open");

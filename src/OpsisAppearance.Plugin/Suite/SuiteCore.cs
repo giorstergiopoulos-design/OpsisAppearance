@@ -468,14 +468,14 @@ namespace Opsis.Suite
         static string Q(string s) => "'" + (s ?? "").Replace("'", "''") + "'";
 
         /// <summary>PowerShell script: περιμένει να κλείσει η εφαρμογή, ξαναελέγχει το SHA-256 (TOCTOU), τρέχει τον installer σιωπηλά (με UAC, εγκατάσταση σε Program Files) και ανοίγει ξανά την εφαρμογή.</summary>
-        public static string BuildScript(string setupPath, string sha256, int waitPid, string appExe)
+        public static string BuildScript(string setupPath, string sha256, int waitPid, string appExe, string mode = null, bool relaunch = true, bool waitForever = false)
         {
             if (string.IsNullOrEmpty(sha256) || sha256.Length != 64) throw new ArgumentException("sha256");
             return "$ErrorActionPreference = 'Stop'\n"
-                 + "try { Wait-Process -Id " + waitPid + " -Timeout 120 -ErrorAction SilentlyContinue } catch { }\n"
+                 + "try { Wait-Process -Id " + waitPid + (waitForever ? "" : " -Timeout 120") + " -ErrorAction SilentlyContinue } catch { }\n"
                  + "if ((Get-FileHash -LiteralPath " + Q(setupPath) + " -Algorithm SHA256).Hash.ToLowerInvariant() -ne " + Q(sha256.ToLowerInvariant()) + ") { exit 2 }\n"
-                 + "$p = Start-Process -FilePath " + Q(setupPath) + " -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS' -Verb RunAs -Wait -PassThru\n"
-                 + "if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath " + Q(appExe) + ")) { Start-Process -FilePath " + Q(appExe) + " }";
+                 + "$p = Start-Process -FilePath " + Q(setupPath) + " -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS'" + (string.IsNullOrEmpty(mode) ? "" : ",'/MODE=" + mode + "'") + " -Verb RunAs -Wait -PassThru\n"
+                 + (relaunch ? "if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath " + Q(appExe) + ")) { Start-Process -FilePath " + Q(appExe) + " }" : "");
         }
     }
 

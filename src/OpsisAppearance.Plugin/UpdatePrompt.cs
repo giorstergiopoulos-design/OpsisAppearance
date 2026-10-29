@@ -2,24 +2,24 @@ using System.Diagnostics;
 using Opsis.Suite;
 using Opsis.UI;
 
-namespace OpsisAppearance.App;
+namespace OpsisAppearance;
 
 /// <summary>
 /// Το ενιαίο popup ενημέρωσης όλων των εφαρμογών Opsis: Εγκατάσταση / Αργότερα / Παράλειψη έκδοσης / Τι νέο υπάρχει. Η εγκατάσταση κατεβάζει τον installer ΜΟΝΟ από τα releases
 /// του repo, επαληθεύει SHA-256 (άρνηση + διαγραφή σε ασυμφωνία), και τον τρέχει σιωπηλά μετά το κλείσιμο της εφαρμογής (το script ξαναελέγχει το hash).
 /// </summary>
-internal sealed class UpdatePrompt : Form
+public sealed class UpdatePrompt : Form
 {
-    private readonly UpdateInfo _info; private readonly UpdateChecker _updater; private readonly SuiteContext _ctx; private readonly bool _greek;
+    private readonly UpdateInfo _info; private readonly UpdateChecker _updater; private readonly SuiteContext _ctx; private readonly bool _greek, _hosted;
     private readonly Label _status = new() { AutoSize = false, Height = 40, Dock = DockStyle.Bottom };
     private readonly FlatButton _install = new() { Primary = true }, _later = new(), _skip = new(), _notes = new();
     public bool InstallStarted { get; private set; }
 
     public static string UpdateDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpsisAppearance", "update");
 
-    public UpdatePrompt(SuiteContext ctx, UpdateChecker updater, UpdateInfo info)
+    public UpdatePrompt(SuiteContext ctx, UpdateChecker updater, UpdateInfo info, bool hostedByOpsis = false)
     {
-        _ctx = ctx; _updater = updater; _info = info; _greek = SuiteLang.Current() == "el";
+        _hosted = hostedByOpsis; _ctx = ctx; _updater = updater; _info = info; _greek = SuiteLang.Current() == "el";
         string T(string el, string en) => _greek ? el : en;
         var c = ctx.Colors;
         Text = "Opsis Appearance"; FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen; TopMost = true; ShowInTaskbar = true;
@@ -52,10 +52,12 @@ internal sealed class UpdatePrompt : Form
         {
             try
             {
-                string script = SelfUpdate.BuildScript(r.Path, r.Actual, Environment.ProcessId, Environment.ProcessPath ?? "");
+                string script = SelfUpdate.BuildScript(r.Path, r.Actual, Environment.ProcessId, Environment.ProcessPath ?? "", _hosted ? "plugin" : "standalone", relaunch: !_hosted, waitForever: _hosted);
                 Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe"))
                 { ArgumentList = { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script }, UseShellExecute = false, CreateNoWindow = true });
-                InstallStarted = true; Close(); return;
+                InstallStarted = true;
+                if (_hosted) { MessageBox.Show(this, T("Η ενημέρωση θα εγκατασταθεί όταν κλείσεις το Opsis (το plugin φορτώνεται από το Opsis). Άνοιξέ το ξανά μετά.", "The update installs when you close Opsis (the plugin is loaded by Opsis). Open it again afterwards."), "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Information); InstallStarted = false; }
+                Close(); return;
             }
             catch (Exception ex) { _status.Text = T("Αποτυχία εκκίνησης: ", "Could not start the installer: ") + ex.Message; }
         }

@@ -17,6 +17,7 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        OpsisAppearancePlugin.HostedByOpsis = false;                     // το αυτόνομο πρόγραμμα έχει τον δικό του έλεγχο ενημέρωσης (TrayContext)
         // Test switch: --snapshot <file.png> renders the settings page to an image and exits (used to check the layout without a screen).
         if (Array.IndexOf(args, "--snapshot") is >= 0 and var at && at + 1 < args.Length)
         {
@@ -153,7 +154,7 @@ internal sealed class TrayContext : ApplicationContext
         }
         _pendingUrl = info.Url;
         _updater.MarkNotified(info.Tag);                                                // μία ειδοποίηση ανά έκδοση
-        using (var prompt = new UpdatePrompt(_suite, _updater, info)) { prompt.ShowDialog(); if (prompt.InstallStarted) { ExitThread(); return; } }
+        using (var prompt = new UpdatePrompt(_suite, _updater, info, hostedByOpsis: false)) { prompt.ShowDialog(); if (prompt.InstallStarted) { ExitThread(); return; } }
         return;
         _updater.MarkNotified(info.Tag);
     }

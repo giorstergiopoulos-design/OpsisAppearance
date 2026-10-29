@@ -90,3 +90,24 @@ namespace OpsisAppearance.Tests
         }
     }
 }
+
+namespace OpsisAppearance.Tests
+{
+    public class UpdateScriptModeTests
+    {
+        [Fact] public void PluginModeWaitsForeverPassesModeAndDoesNotRelaunch()
+        {
+            var s = Opsis.Suite.SelfUpdate.BuildScript(@"C:\x\setup.exe", new string('b', 64), 42, @"C:\Opsis\Opsis.exe", "plugin", relaunch: false, waitForever: true);
+            Assert.Contains("/MODE=plugin", s); Assert.DoesNotContain("-Timeout 120", s); Assert.DoesNotContain("Opsis.exe", s); Assert.Contains("-Verb RunAs", s);
+        }
+        [Fact] public void StandaloneModeRelaunches()
+        {
+            var s = Opsis.Suite.SelfUpdate.BuildScript(@"C:\x\setup.exe", new string('b', 64), 42, @"C:\Prog\OpsisAppearance.exe", "standalone");
+            Assert.Contains("/MODE=standalone", s); Assert.Contains("-Timeout 120", s); Assert.Contains("OpsisAppearance.exe'", s);
+        }
+        [Fact] public void PluginStartsUpdateChecksOnlyWhenHosted()
+        {
+            Assert.True(OpsisAppearance.OpsisAppearancePlugin.HostedByOpsis);        // προεπιλογή: μέσα στο Opsis ελέγχει το plugin
+        }
+    }
+}
