@@ -212,7 +212,7 @@ public class PluginContractTests
         Assert.Equal("giorstergiopoulos.opsisappearance", plugin.Id);
         Assert.Single(plugin.GetNavigationItems());
         var keys = plugin.GetTrayMenuItems().Select(i => i.Key).ToArray();
-        Assert.Equal(new[] { "appearance.toggle", "appearance.open", "appearance.welcome", "appearance.family" }, keys);      // οδηγός + οικογένεια Opsis: μόνο εγγραφές μενού, τίποτα δεν ξεκινά μόνο του
+        Assert.Equal(new[] { "appearance.toggle", "appearance.open", "appearance.welcome", "appearance.update", "appearance.family" }, keys);      // οδηγός + οικογένεια Opsis: μόνο εγγραφές μενού, τίποτα δεν ξεκινά μόνο του
         Assert.NotEmpty(plugin.GetAboutInfo().Sections);
     }
 }
