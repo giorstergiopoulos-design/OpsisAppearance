@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.2 — 2026-10-30
+- **Settings search box** (finds settings in every category) and a **"Reset this category" button** (Theme & colour, Taskbar, Windows, Wallpaper & themes; asks first; System and Guide have the global "Restore my original settings"). Not covered by an automated test (the plugin's settings store writes to the user profile); checked by building and rendering the page only.
+- The update helper now writes every stage to `%LocalAppData%\OpsisAppearance\update\last-update.log` (shared SuiteCore with the Media Player Pro log version) and a failed update is shown as a balloon on the next start of the stand-alone app.
+
 ## 1.7.1 — 2026-10-30
 - Version history: v1.7.0 was published before these two changes, so they ship as 1.7.1 (the public 1.7.0 tag is untouched).
 - **Settings grouped in categories like the Crawler**: six tabs (Theme & colour, Taskbar, Windows, System, Wallpaper & themes, Guide & updates; Greek and English) instead of one long page; every setting belongs to one tab. Plugin menu in Opsis: Toggle light/dark, Windows appearance…, Welcome guide…, **Check for updates…**, The Opsis family….

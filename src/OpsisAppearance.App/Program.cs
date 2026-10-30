@@ -120,6 +120,7 @@ internal sealed class TrayContext : ApplicationContext
         _tray = new NotifyIcon { Icon = _icon, Text = "Opsis Appearance", Visible = true, ContextMenuStrip = BuildMenu() };
         if (!_plugin.EngineActive)
             _tray.ShowBalloonTip(8000, "Opsis Appearance", SuiteLang.Current() == "el" ? "Το Opsis Appearance τρέχει ήδη (μέσα στο Opsis). Εδώ δεν εφαρμόζεται τίποτα ώστε να μην υπάρχουν δύο εφαρμογές εφέ." : "Opsis Appearance is already running (inside Opsis). Nothing is applied from here so two engines never fight.", ToolTipIcon.Info);
+        ReportFailedUpdate();
         _tray.DoubleClick += (_, _) => ShowWindow();
         _tray.BalloonTipClicked += (_, _) => OpenReleasePage();
 
@@ -160,6 +161,19 @@ internal sealed class TrayContext : ApplicationContext
         using (var prompt = new UpdatePrompt(_suite, _updater, info, hostedByOpsis: false)) { prompt.ShowDialog(); if (prompt.InstallStarted) { ExitThread(); return; } }
         return;
         _updater.MarkNotified(info.Tag);
+    }
+
+    /// <summary>Αν η προηγούμενη σιωπηλή ενημέρωση απέτυχε (last-update.log), ο χρήστης το μαθαίνει στην επόμενη εκκίνηση, μία φορά.</summary>
+    private void ReportFailedUpdate()
+    {
+        try
+        {
+            var log = Path.Combine(UpdatePrompt.UpdateDir, "last-update.log"); if (!File.Exists(log)) return;
+            var last = File.ReadAllLines(log).LastOrDefault(l => l.Trim().Length > 0) ?? "";
+            if (last.Contains("FAILED")) _tray.ShowBalloonTip(10000, "Opsis Appearance", (_greek ? "Η τελευταία ενημέρωση απέτυχε: " : "The last update failed: ") + last[Math.Min(last.Length, 20)..] + (_greek ? " — δες " : " — see ") + log, ToolTipIcon.Warning);
+            File.Move(log, log + ".old", true);
+        }
+        catch (Exception) { }
     }
 
     private void OpenReleasePage()

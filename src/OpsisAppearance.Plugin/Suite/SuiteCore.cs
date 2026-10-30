@@ -468,14 +468,19 @@ namespace Opsis.Suite
         static string Q(string s) => "'" + (s ?? "").Replace("'", "''") + "'";
 
         /// <summary>PowerShell script: περιμένει να κλείσει η εφαρμογή, ξαναελέγχει το SHA-256 (TOCTOU), τρέχει τον installer σιωπηλά (με UAC, εγκατάσταση σε Program Files) και ανοίγει ξανά την εφαρμογή.</summary>
-        public static string BuildScript(string setupPath, string sha256, int waitPid, string appExe, string mode = null, bool relaunch = true, bool waitForever = false)
+        public static string BuildScript(string setupPath, string sha256, int waitPid, string appExe, string mode = null, bool relaunch = true, bool waitForever = false, string logPath = null)
         {
             if (string.IsNullOrEmpty(sha256) || sha256.Length != 64) throw new ArgumentException("sha256");
+            string L(string msg) => string.IsNullOrEmpty(logPath) ? "" : "try { Add-Content -LiteralPath " + Q(logPath) + " -Value ((Get-Date -Format s) + ' " + msg + "') } catch { }\n";
             return "$ErrorActionPreference = 'Stop'\n"
+                 + L("update started")
                  + "try { Wait-Process -Id " + waitPid + (waitForever ? "" : " -Timeout 120") + " -ErrorAction SilentlyContinue } catch { }\n"
-                 + "if ((Get-FileHash -LiteralPath " + Q(setupPath) + " -Algorithm SHA256).Hash.ToLowerInvariant() -ne " + Q(sha256.ToLowerInvariant()) + ") { exit 2 }\n"
-                 + "$p = Start-Process -FilePath " + Q(setupPath) + " -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS'" + (string.IsNullOrEmpty(mode) ? "" : ",'/MODE=" + mode + "'") + " -Verb RunAs -Wait -PassThru\n"
-                 + (relaunch ? "if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath " + Q(appExe) + ")) { Start-Process -FilePath " + Q(appExe) + " }" : "");
+                 + "if ((Get-FileHash -LiteralPath " + Q(setupPath) + " -Algorithm SHA256).Hash.ToLowerInvariant() -ne " + Q(sha256.ToLowerInvariant()) + ") { " + L("FAILED: SHA-256 changed after download - installer not run") + "exit 2 }\n"
+                 + L("hash ok, running installer")
+                 + "try { $p = Start-Process -FilePath " + Q(setupPath) + " -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS'" + (string.IsNullOrEmpty(mode) ? "" : ",'/MODE=" + mode + "'") + " -Verb RunAs -Wait -PassThru } catch { " + L("FAILED: installer was not started (UAC declined?)") + "exit 3 }\n"
+                 + "if ($p.ExitCode -ne 0) { " + L("FAILED: installer exit code ' + $p.ExitCode + '") + "exit 4 }\n"
+                 + L("installed")
+                 + (relaunch ? "if (Test-Path -LiteralPath " + Q(appExe) + ") { Start-Process -FilePath " + Q(appExe) + " }" : "");
         }
     }
 

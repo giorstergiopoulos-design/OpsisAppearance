@@ -211,6 +211,22 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
         if (!_store.HasBackup) _store.SaveBackupOnce(_engine.Snapshot());
     }
 
+    /// <summary>Επαναφορά των ρυθμίσεων μίας κατηγορίας στις προεπιλογές (0 θέμα/χρώμα, 1 taskbar, 2 παράθυρα, 4 wallpaper/slideshow)· οι ρυθμίσεις συστήματος έχουν «Επαναφορά στις αρχικές μου ρυθμίσεις».</summary>
+    internal void ResetCategory(int category)
+    {
+        var d = new AppearanceSettings();
+        switch (category)
+        {
+            case 0: _settings.Mode = d.Mode; _settings.Latitude = d.Latitude; _settings.Longitude = d.Longitude; _settings.LightAt = d.LightAt; _settings.DarkAt = d.DarkAt; _settings.SunOffsetMinutes = d.SunOffsetMinutes; break;
+            case 1: _settings.TaskbarLook = d.TaskbarLook; _settings.TaskbarShape = d.TaskbarShape; break;
+            case 2: _settings.Effects = d.Effects; break;
+            case 4: _settings.Slideshow = d.Slideshow; break;
+            default: return;
+        }
+        SaveSettings();
+        try { if (category == 2) ApplyEffects(); if (category == 1) ApplyTaskbar(askForRestorePoint: false); } catch (Exception) { }
+    }
+
     internal void SaveSettings() { _store.Save(_settings); UpdateTimer(); UpdateSlideTimer(); ApplySchedule(force: true); }
 
     // ---- taskbar look / shape + safety ---------------------------------------------------------------------------
@@ -408,14 +424,22 @@ internal sealed class AppearancePage : UserControl
     private readonly FlatTabs _tabs = new() { Width = 780, Height = 38, Margin = new Padding(0, 6, 0, 6) };
     private readonly List<(Control Control, int Category)> _placed = new();
     private int _cat;
+    private readonly TextBox _searchBox = new() { Width = 260, PlaceholderText = "" };
+    private readonly FlatButton _resetCat = new();
+    private static string TextOf(Control c) => (c.Text ?? "") + " " + string.Join(" ", c.Controls.Cast<Control>().Select(TextOf));
     private void Put(Control c) { _placed.Add((c, _cat)); _flow.Controls.Add(c); }
     public void SelectTab(int index) { _tabs.SelectedIndex = Math.Clamp(index, 0, _tabs.Tabs.Count - 1); ApplyTab(); }
     private void ApplyTab()
     {
         _flow.SuspendLayout();
-        foreach (var (c, cat) in _placed) c.Visible = cat < 0 || cat == _tabs.SelectedIndex || ReferenceEquals(c, _tabs);
+        string q = _searchBox.Text.Trim();
+        // αναζήτηση: δείχνει μόνο ό,τι ταιριάζει (από όλες τις κατηγορίες)· χωρίς αναζήτηση, μόνο η ενεργή καρτέλα
+        foreach (var (c, cat) in _placed)
+            c.Visible = cat < 0 || ReferenceEquals(c, _tabs) || (q.Length > 0 ? TextOf(c).Contains(q, StringComparison.CurrentCultureIgnoreCase) : cat == _tabs.SelectedIndex);
+        _resetCat.Visible = q.Length == 0 && Array.IndexOf(ResettableTabs, _tabs.SelectedIndex) >= 0;
         _flow.ResumeLayout(true);
     }
+    private static readonly int[] ResettableTabs = { 0, 1, 2, 4 };
     private static readonly string[] TabEl = { "Θέμα και χρώμα", "Taskbar", "Παράθυρα", "Σύστημα", "Wallpaper και θέματα", "Οδηγός και ενημερώσεις" };
     private static readonly string[] TabEn = { "Theme & colour", "Taskbar", "Windows", "System", "Wallpaper & themes", "Guide & updates" };
     private readonly SwatchButton _barTint = new();
@@ -448,6 +472,7 @@ internal sealed class AppearancePage : UserControl
         OpsisSkin.ThemeScrollbars(_flow); OpsisSkin.ThemeScrollbars(_themeList);
         _cat = -1; Put(_status); _cat = 0;
         Put(_tabs);
+        _cat = -1; Put(Row(_searchBox, _resetCat)); _cat = 0;
         _cat = 0;
         Put(_hSchedule);
         Put(Row(_manual, _autoSun, _autoFixed));
@@ -591,6 +616,13 @@ internal sealed class AppearancePage : UserControl
         _welcomeBtn.Click += (_, _) => _p.ShowWelcomeGuide(FindForm());
         _familyBtn.Click += (_, _) => _p.ShowFamily(FindForm());
         _tabs.SelectedIndexChanged += (_, _) => ApplyTab();
+        _searchBox.TextChanged += (_, _) => ApplyTab();
+        _resetCat.Click += (_, _) =>
+        {
+            var ask = _greek ? "Να επανέλθουν οι ρυθμίσεις αυτής της κατηγορίας στις προεπιλογές;" : "Reset the settings of this category to their defaults?";
+            if (OpsisBox.Show(FindForm(), ask, "Opsis Appearance", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            _p.ResetCategory(_tabs.SelectedIndex); RefreshAll();
+        };
         _updBtn.Click += async (_, _) => await _p.CheckUpdatesAsync(FindForm(), true);
         _fileExt.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowFileExtensions = _fileExt.Checked }));
         _hiddenFiles.Click += (_, _) => Do(() => _p.Engine.Apply(new Look { ShowHiddenFiles = _hiddenFiles.Checked }));
@@ -846,6 +878,7 @@ internal sealed class AppearancePage : UserControl
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
         _hSuite.Text = T("Οδηγός και οικογένεια Opsis", "Guide and the Opsis family");
         _tabs.SetTabs(_greek ? TabEl : TabEn, Math.Max(0, _tabs.SelectedIndex));
+        _searchBox.PlaceholderText = T("Αναζήτηση ρυθμίσεων…", "Search settings…"); _resetCat.Text = T("Επαναφορά κατηγορίας", "Reset this category");
         _welcomeBtn.Text = T("Καλώς ήρθες — οδηγός χρήσης…", "Welcome guide…"); _familyBtn.Text = T("Οι εφαρμογές της οικογένειας Opsis…", "The Opsis family…"); _updBtn.Text = T("Έλεγχος για ενημερώσεις…", "Check for updates…");
         _hBar.Text = T("Εμφάνιση taskbar (διαφάνεια, χρώμα, στρογγυλά άκρα)", "Taskbar look (transparency, colour, rounded edges)");
         _barOn.Text = T("Εφαρμογή εμφάνισης taskbar", "Apply a taskbar look");

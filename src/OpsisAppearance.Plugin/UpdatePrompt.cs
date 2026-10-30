@@ -52,7 +52,7 @@ public sealed class UpdatePrompt : Form
         {
             try
             {
-                string script = SelfUpdate.BuildScript(r.Path, r.Actual, Environment.ProcessId, Environment.ProcessPath ?? "", _hosted ? "plugin" : "standalone", relaunch: !_hosted, waitForever: _hosted);
+                string script = SelfUpdate.BuildScript(r.Path, r.Actual, Environment.ProcessId, Environment.ProcessPath ?? "", _hosted ? "plugin" : "standalone", relaunch: !_hosted, waitForever: _hosted, logPath: Path.Combine(UpdateDir, "last-update.log"));
                 Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe"))
                 { ArgumentList = { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script }, UseShellExecute = false, CreateNoWindow = true });
                 InstallStarted = true;
