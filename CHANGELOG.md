@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.3 — 2026-11-03
+- **About section like the Crawler**: in Opsis (About) and in a new **About** tab of the page: **Help** (what each tab does), **Instructions** (quick start, restore point, backups), **Version history** and **License** (from the LICENSE file + third-party components), in Greek and English. Replaces the old "Safety / Window effects / Automatic theme" sections. Tab titles shortened (Updates, About) so seven tabs fit.
+- Opsis.UI updated to 0.2.2 (the check box was cut at its top-left corner and the switch ring at the right edge): checked in dark, light and **right-to-left** renders of the Taskbar tab (switches mirror to the left, nothing is cut). The search box and the About text box follow the theme colours.
+- Tests: version history lists the current version in both languages and every entry exists in this CHANGELOG; the About sections and the license text.
+
 ## 1.7.2 — 2026-10-30
 - **Settings search box** (finds settings in every category) and a **"Reset this category" button** (Theme & colour, Taskbar, Windows, Wallpaper & themes; asks first; System and Guide have the global "Restore my original settings"). Not covered by an automated test (the plugin's settings store writes to the user profile); checked by building and rendering the page only.
 - The update helper now writes every stage to `%LocalAppData%\OpsisAppearance\update\last-update.log` (shared SuiteCore with the Media Player Pro log version) and a failed update is shown as a balloon on the next start of the stand-alone app.

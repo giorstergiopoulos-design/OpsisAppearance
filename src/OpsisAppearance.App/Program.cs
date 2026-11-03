@@ -33,6 +33,7 @@ internal static class Program
             // Ένα top-level παράθυρο δεν μπορεί να ξεπεράσει το ύψος της οθόνης: η σελίδα μπαίνει σε ένα ψηλό panel-παιδί ώστε να αποδοθεί ολόκληρη.
             using var form = new Form { ClientSize = new Size(820, 900), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, 0) };
             var host = new Panel { Location = Point.Empty, Size = new Size(820, 3200) };
+            if (args.Contains("--rtl")) { form.RightToLeft = RightToLeft.Yes; host.RightToLeft = RightToLeft.Yes; }
             page.Dock = DockStyle.Fill; host.Controls.Add(page); form.Controls.Add(host); form.Show(); Application.DoEvents();
             using var bmp = new Bitmap(host.Width, host.Height);
             host.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));

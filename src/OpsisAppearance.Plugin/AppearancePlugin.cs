@@ -109,15 +109,10 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
         "Opsis Team", "MIT",
         new[]
         {
-            new PluginAboutSection("Ασφάλεια", "Safety",
-                "Αλλάζει μόνο ρυθμίσεις του τρέχοντος χρήστη (HKCU). Την πρώτη αλλαγή αποθηκεύει αντίγραφο των αρχικών τιμών· το κουμπί «Επαναφορά» τις γυρνά πίσω.\n" +
-                "Only per-user (HKCU) settings. The first change saves a copy of your original values; Restore puts them back."),
-            new PluginAboutSection("Εφέ παραθύρων", "Window effects",
-                "Χρωματιστό border ενεργού παραθύρου, γωνίες, σκούρες γραμμές τίτλου, Mica/Acrylic backdrop, αυτόματη απόκρυψη taskbar. Ισχύουν όσο τρέχει το Opsis και επαναφέρονται πλήρως όταν σταματήσει το plugin.\n" +
-                "Coloured active-window border, corners, dark title bars, Mica/Acrylic backdrop, taskbar auto-hide. They apply while Opsis runs and are fully restored when the plugin stops."),
-            new PluginAboutSection("Αυτόματο θέμα", "Automatic theme",
-                "Υπολογίζει ανατολή/δύση από γεωγραφικό πλάτος/μήκος (προεπιλογή Αθήνα) ή χρησιμοποιεί σταθερές ώρες. Ένας μόνο timer ανά λεπτό, μόνο όταν είναι ενεργό.\n" +
-                "Sunrise/sunset from latitude/longitude (Athens by default) or fixed times. One 60 s timer, only while automatic mode is on.")
+            new PluginAboutSection("Βοήθεια", "Help", AboutTexts.Help(_greek)),
+            new PluginAboutSection("Οδηγίες χρήσης", "Instructions", AboutTexts.Instructions(_greek)),
+            new PluginAboutSection("Ιστορικό εκδόσεων", "Version history", AboutTexts.History(_greek)),
+            new PluginAboutSection("Άδεια χρήσης", "License", AboutTexts.License(_greek)),
         });
 
     public IReadOnlyList<PluginMenuItem> GetTrayMenuItems() => new[]
@@ -426,6 +421,9 @@ internal sealed class AppearancePage : UserControl
     private int _cat;
     private readonly TextBox _searchBox = new() { Width = 260, PlaceholderText = "" };
     private readonly FlatButton _resetCat = new();
+    private readonly FlatButton _aboutHelp = new(), _aboutHow = new(), _aboutHistory = new(), _aboutLicense = new();
+    private readonly TextBox _aboutText = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Width = 780, Height = 420, BorderStyle = BorderStyle.FixedSingle };
+    private void ShowAbout(Func<bool, string> text) { _aboutText.Text = text(_greek).Replace("\n", "\r\n"); _aboutText.SelectionStart = 0; _aboutText.ScrollToCaret(); }
     private static string TextOf(Control c) => (c.Text ?? "") + " " + string.Join(" ", c.Controls.Cast<Control>().Select(TextOf));
     private void Put(Control c) { _placed.Add((c, _cat)); _flow.Controls.Add(c); }
     public void SelectTab(int index) { _tabs.SelectedIndex = Math.Clamp(index, 0, _tabs.Tabs.Count - 1); ApplyTab(); }
@@ -440,8 +438,8 @@ internal sealed class AppearancePage : UserControl
         _flow.ResumeLayout(true);
     }
     private static readonly int[] ResettableTabs = { 0, 1, 2, 4 };
-    private static readonly string[] TabEl = { "Θέμα και χρώμα", "Taskbar", "Παράθυρα", "Σύστημα", "Wallpaper και θέματα", "Οδηγός και ενημερώσεις" };
-    private static readonly string[] TabEn = { "Theme & colour", "Taskbar", "Windows", "System", "Wallpaper & themes", "Guide & updates" };
+    private static readonly string[] TabEl = { "Θέμα και χρώμα", "Taskbar", "Παράθυρα", "Σύστημα", "Wallpaper και θέματα", "Ενημερώσεις", "Σχετικά" };
+    private static readonly string[] TabEn = { "Theme & colour", "Taskbar", "Windows", "System", "Wallpaper & themes", "Updates", "About" };
     private readonly SwatchButton _barTint = new();
     private readonly FlatButton _capColor = new(), _capText = new(), _capClear = new(), _rpNow = new(), _openBackups = new();
     private readonly OpsisText _exclude = new() { Width = 420 };
@@ -461,7 +459,7 @@ internal sealed class AppearancePage : UserControl
         _texts.AddRange(new[] { _tBarN, _tBarM, _tBarS, _tBarOp, _tShapeR, _tShapeX, _tShapeY, _tExclude, _barNote, _everyNote, _safetyInfo, _tLight, _tDark, _tLat, _tLon, _tOff, _tSafety, _tCorners, _tTitle, _tBackdrop, _tCombine, _tSlideEvery, _tSlideStyle, _slideInfo, _tShellNote });
         _radios.AddRange(new[] { _manual, _autoSun, _autoFixed });
         _checks.AddRange(new[] { _barOn, _shapeOn, _rpCheck, _transp, _accentSurf, _centered, _search, _taskView, _widgets, _borderCheck, _hideTaskbar, _fileExt, _hiddenFiles, _clockSecs, _animations, _slideOn, _slideShuffle });
-        _buttons.AddRange(new[] { _welcomeBtn, _familyBtn, _updBtn, _barTint, _capColor, _capText, _capClear, _rpNow, _openBackups, _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
+        _buttons.AddRange(new[] { _aboutHelp, _aboutHow, _aboutHistory, _aboutLicense, _welcomeBtn, _familyBtn, _updBtn, _barTint, _capColor, _capText, _capClear, _rpNow, _openBackups, _slideFolder, _slideNext, _restartExplorer, _lightNow, _darkNow, _pick, _fromWall, _restore, _borderColor, _themeApply, _themeSave, _themeDelete, _themeImport, _themeExport, _themeFolder, _winThemeApply });
         foreach (var h in _headings) { h.AutoSize = true; h.Font = new Font("Segoe UI Semibold", 12f); h.Margin = new Padding(0, 14, 0, 4); }
         foreach (var t in _texts) { t.AutoSize = true; t.Margin = new Padding(0, 6, 4, 0); }
         _barNote.MaximumSize = new Size(760, 0); _everyNote.MaximumSize = new Size(760, 0);
@@ -534,6 +532,7 @@ internal sealed class AppearancePage : UserControl
         Put(Row(_welcomeBtn, _familyBtn, _updBtn));
         Put(Row(_restore));
         Put(_tSafety);
+        _cat = 6; Put(Row(_aboutHelp, _aboutHow, _aboutHistory, _aboutLicense)); Put(_aboutText); ShowAbout(AboutTexts.Help);
 
         foreach (int rgb in SwatchColors)
         {
@@ -615,6 +614,8 @@ internal sealed class AppearancePage : UserControl
         _openBackups.Click += (_, _) => { try { Directory.CreateDirectory(_p.Vault.Root); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_p.Vault.Root) { UseShellExecute = true }); } catch (Exception) { } };
         _welcomeBtn.Click += (_, _) => _p.ShowWelcomeGuide(FindForm());
         _familyBtn.Click += (_, _) => _p.ShowFamily(FindForm());
+        _aboutHelp.Click += (_, _) => ShowAbout(AboutTexts.Help); _aboutHow.Click += (_, _) => ShowAbout(AboutTexts.Instructions);
+        _aboutHistory.Click += (_, _) => ShowAbout(AboutTexts.History); _aboutLicense.Click += (_, _) => ShowAbout(AboutTexts.License);
         _tabs.SelectedIndexChanged += (_, _) => ApplyTab();
         _searchBox.TextChanged += (_, _) => ApplyTab();
         _resetCat.Click += (_, _) =>
@@ -878,6 +879,7 @@ internal sealed class AppearancePage : UserControl
         _hideTaskbar.Text = T("Αυτόματη απόκρυψη του taskbar των Windows (χρήσιμο με το DeskStrip)", "Auto-hide the Windows taskbar (handy with DeskStrip)");
         _hSuite.Text = T("Οδηγός και οικογένεια Opsis", "Guide and the Opsis family");
         _tabs.SetTabs(_greek ? TabEl : TabEn, Math.Max(0, _tabs.SelectedIndex));
+        _aboutHelp.Text = T("Βοήθεια", "Help"); _aboutHow.Text = T("Οδηγίες χρήσης", "Instructions"); _aboutHistory.Text = T("Ιστορικό εκδόσεων", "Version history"); _aboutLicense.Text = T("Άδεια χρήσης", "License"); ShowAbout(AboutTexts.Help);
         _searchBox.PlaceholderText = T("Αναζήτηση ρυθμίσεων…", "Search settings…"); _resetCat.Text = T("Επαναφορά κατηγορίας", "Reset this category");
         _welcomeBtn.Text = T("Καλώς ήρθες — οδηγός χρήσης…", "Welcome guide…"); _familyBtn.Text = T("Οι εφαρμογές της οικογένειας Opsis…", "The Opsis family…"); _updBtn.Text = T("Έλεγχος για ενημερώσεις…", "Check for updates…");
         _hBar.Text = T("Εμφάνιση taskbar (διαφάνεια, χρώμα, στρογγυλά άκρα)", "Taskbar look (transparency, colour, rounded edges)");
@@ -943,6 +945,7 @@ internal sealed class AppearancePage : UserControl
         foreach (var l in _headings) { l.ForeColor = p.Text; l.BackColor = p.Bg; }
         foreach (var l in _texts) { l.ForeColor = p.Muted; l.BackColor = p.Bg; }
         _status.ForeColor = p.Accent; _status.BackColor = p.Bg;
+        foreach (var tb in new[] { _searchBox, _aboutText }) { tb.BackColor = p.Surface; tb.ForeColor = p.Text; tb.BorderStyle = BorderStyle.FixedSingle; }
         foreach (var c in _checks) { c.ForeColor = p.Text; c.BackColor = p.Bg; c.AutoSize = true; c.Margin = new Padding(0, 4, 18, 4); }
         foreach (var r in _radios) { r.ForeColor = p.Text; r.BackColor = p.Bg; }
         foreach (var b in _buttons) StyleButton(b);

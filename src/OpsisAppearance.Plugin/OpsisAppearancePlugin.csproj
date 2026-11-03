@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OpsisAppearancePlugin</AssemblyName>
     <RootNamespace>OpsisAppearance</RootNamespace>
-    <Version>1.7.2</Version>
+    <Version>1.7.3</Version>
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <Product>Opsis Appearance</Product>
     <Company>Opsis Team</Company>
@@ -16,6 +16,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Suite/apps.json" LogicalName="suite.apps.json" />
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="about.license.txt" />
     <EmbeddedResource Include="Suite/appicon.ico" LogicalName="suite.appicon.ico" />
     <EmbeddedResource Include="Suite/icons/*.ico" LogicalName="suite.icon.%(Filename).ico" />
   </ItemGroup>
