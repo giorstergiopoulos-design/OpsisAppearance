@@ -16,6 +16,7 @@ public static class AboutTexts
     /// <summary>Ιστορικό εκδόσεων: ΠΑΝΤΑ ενημερώνεται μαζί με το CHANGELOG (το test ελέγχει ότι η τρέχουσα έκδοση υπάρχει και στις δύο γλώσσες).</summary>
     public static readonly (string Version, string El, string En)[] HistoryEntries =
     {
+        ("1.7.4", "Μέσα στο Opsis το tray δεν δείχνει διπλά τον οδηγό και την οικογένεια Opsis· χωρίς τοπικές διαδρομές στα DLL· ξαναχτίστηκαν τα κοινά libs.", "Inside Opsis the tray no longer shows the guide and the Opsis family twice; no local paths in the DLLs; the shared libs were rebuilt."),
         ("1.7.3", "Ενότητα «Σχετικά»: Βοήθεια, Οδηγίες χρήσης, Ιστορικό εκδόσεων, Άδεια χρήσης (και καρτέλα Σχετικά)· ενημέρωση Opsis.UI (κομμένο checkbox/διακόπτης).", "About section: Help, Instructions, Version history, License (and an About tab); Opsis.UI update (cut-off check box / switch)."),
         ("1.7.2", "Αναζήτηση ρυθμίσεων, «Επαναφορά κατηγορίας», log ενημέρωσης.", "Settings search, \"Reset this category\", update log."),
         ("1.7.1", "Popup ενημέρωσης και μέσα στο Opsis· ρυθμίσεις σε έξι καρτέλες.", "Update popup also inside Opsis; settings in six tabs."),

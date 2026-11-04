@@ -115,7 +115,10 @@ public sealed class OpsisAppearancePlugin : IOpsisNewsCrawlerPlugin, IPluginProf
             new PluginAboutSection("Άδεια χρήσης", "License", AboutTexts.License(_greek)),
         });
 
-    public IReadOnlyList<PluginMenuItem> GetTrayMenuItems() => new[]
+    /// <summary>Μέσα στο Opsis (HostedByOpsis) το Opsis δείχνει ΜΙΑ φορά στο tray τον οδηγό καλωσορίσματος και την οικογένεια Opsis· εδώ δεν τα επιστρέφουμε ώστε να μην εμφανίζονται πολλές φορές. Το αυτόνομο πρόγραμμα τα κρατά.</summary>
+    public IReadOnlyList<PluginMenuItem> GetTrayMenuItems() => AllTrayItems().Where(i => !HostedByOpsis || (i.Key != "appearance.welcome" && i.Key != "appearance.family")).ToList();
+
+    private PluginMenuItem[] AllTrayItems() => new[]
     {
         new PluginMenuItem("appearance.toggle", "Εναλλαγή Light/Dark", "Toggle Light/Dark", () => { try { Backup(); _engine.SetDark(!_engine.IsDark); Broadcaster.SettingsChanged(); _page?.RefreshAll(); } catch (Exception) { } }),
         new PluginMenuItem("appearance.open", "Εμφάνιση Windows…", "Windows appearance…", () => NavigationRequested?.Invoke(NavigationKey)),

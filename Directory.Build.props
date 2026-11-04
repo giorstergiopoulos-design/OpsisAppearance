@@ -1,0 +1,9 @@
+<Project>
+  <!-- Reproducible builds without local paths: no "C:\w\..." or user names inside the DLLs (PDB path, source paths). Checked by BuildHygieneTests. -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DeterministicSourcePaths>true</DeterministicSourcePaths>
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+  </PropertyGroup>
+</Project>
