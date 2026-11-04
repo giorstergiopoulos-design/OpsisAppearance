@@ -76,15 +76,19 @@ jobs:
         shell: pwsh
         run: |
           $patterns = @('C:\Users\','C:\w\','gstrj','LOGISTIRIO','giorstergiopoulos@gmail','/Users/','D:\a\')
-          # D:\a\ is the runner build path of THIS repository's CI; the owner login in a public GitHub URL is not personal data
+          # Not ours to clean, so not scanned: third-party DLLs (Microsoft.Web.WebView2.*, WebView2Loader.dll ...: every exe/dll whose name is not OpsisNewsCrawler* or Opsis.UI*), and the build-agent path of the .NET runtime
+          # that Microsoft's own apphost stub (the exe launcher inside OpsisNewsCrawler.exe) carries: D:\a\_work\1\s\src\runtime\...\corehost\apphost\apphost.pdb.
           $work = Join-Path $env:RUNNER_TEMP 'trace'; New-Item -ItemType Directory -Force $work | Out-Null
           $hits = @()
           Get-ChildItem assets -Filter *.zip | ForEach-Object {
             $d = Join-Path $work $_.BaseName; Expand-Archive $_.FullName $d -Force
             Get-ChildItem $d -Recurse -File -Include *.exe,*.dll,*.pdb,*.json,*.config,*.js,*.html | ForEach-Object {
+              if ($_.Extension -in '.exe','.dll' -and $_.Name -notlike 'OpsisNewsCrawler*' -and $_.Name -notlike 'Opsis.UI*') { "skipped (third-party, company: $($_.VersionInfo.CompanyName)): $($_.Name)"; return }
               $b = [IO.File]::ReadAllBytes($_.FullName)
               $u8 = [Text.Encoding]::Latin1.GetString($b); $u16 = [Text.Encoding]::Unicode.GetString($b)
+              $apphost = $u8.IndexOf('\corehost\apphost\', [StringComparison]::OrdinalIgnoreCase) -ge 0
               foreach ($p in $patterns) {
+                if ($apphost -and $p -eq 'D:\a\') { continue }
                 if ($u8.IndexOf($p, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or $u16.IndexOf($p, [StringComparison]::OrdinalIgnoreCase) -ge 0) { $hits += "$($_.Name): contains '$p'" }
               }
             }

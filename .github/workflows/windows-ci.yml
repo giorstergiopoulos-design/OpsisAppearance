@@ -20,4 +20,11 @@ jobs:
         run: |
           dotnet build src/OpsisAppearance.App -c Release
           $exe = Get-ChildItem src/OpsisAppearance.App/bin/Release -Recurse -Filter OpsisAppearance.exe | Select-Object -First 1
-          foreach ($m in '', '--light') { foreach ($l in '', '--el') { & $exe.FullName --snapshot "$env:RUNNER_TEMP/s.png" $m $l; if (-not (Test-Path "$env:RUNNER_TEMP/s.png")) { throw "snapshot failed ($m $l)" } Remove-Item "$env:RUNNER_TEMP/s.png" } }
+          $png = Join-Path $env:RUNNER_TEMP 's.png'
+          # a WinForms exe is a GUI-subsystem program: PowerShell's & does not wait for it, so Start-Process -Wait is required
+          foreach ($m in @(@(), @('--light'))) { foreach ($l in @(@(), @('--el'))) {
+            if (Test-Path $png) { Remove-Item $png }
+            $a = @('--snapshot', $png) + $m + $l
+            $p = Start-Process -FilePath $exe.FullName -ArgumentList $a -Wait -PassThru
+            if ($p.ExitCode -ne 0 -or -not (Test-Path $png) -or (Get-Item $png).Length -lt 10000) { throw "snapshot failed (exit $($p.ExitCode)): $a" }
+          } }
