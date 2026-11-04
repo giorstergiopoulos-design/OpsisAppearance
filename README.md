@@ -12,7 +12,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2011-0078D6?logo=windows&logoColor=white" />
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white" />
-  <img alt="Version" src="https://img.shields.io/badge/version-1.7.4-00B4D8" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.7.5-00B4D8" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
@@ -149,4 +149,4 @@ Requires Windows 11, the [.NET 10 SDK](https://dotnet.microsoft.com/download) an
 
 ## Άδεια / License
 
-MIT — see [LICENSE](LICENSE). Part of the Opsis family: [Opsis](https://github.com/giorstergiopoulos-design/Opsis) · [Opsis News Crawler](https://github.com/giorstergiopoulos-design/OpsisNewsCrawler) · [Waveframe](https://github.com/giorstergiopoulos-design/waveframe).
+**MIT** (το τυπικό κείμενο στο αρχείο [LICENSE](LICENSE), αναγνωρίσιμο από το GitHub). Με απλά λόγια: μπορείς να χρησιμοποιείς, να αντιγράφεις, να τροποποιείς και να διανέμεις το πρόγραμμα ελεύθερα, με την προϋπόθεση να κρατάς τη σημείωση πνευματικών δικαιωμάτων· το λογισμικό παρέχεται «ΩΣ ΕΧΕΙ», χωρίς εγγύηση, και ο δημιουργός δεν ευθύνεται για ζημιές ή απώλεια δεδομένων. / **MIT** (the standard text in [LICENSE](LICENSE), recognised by GitHub). In plain words: you may use, copy, modify and redistribute the program freely as long as you keep the copyright notice; the software is provided "AS IS" without warranty and the author is not liable for damage or data loss.

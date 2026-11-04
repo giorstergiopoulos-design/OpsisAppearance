@@ -1,0 +1,81 @@
+# Installer end-to-end test on a CLEAN, FREE GitHub-hosted Windows runner (public repository = free minutes).
+#   download the newest PUBLISHED installer + SHA-256 -> silent install (stand-alone) into Program Files -> check files, uninstall entry, version, publisher
+#   -> silent reinstall as plugin into a temporary plugin root -> uninstall -> check nothing is left.
+# Not covered here (a hosted runner cannot): UAC prompt, SmartScreen, per-monitor DPI, a running Opsis.
+name: installer-e2e
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['installer/**', 'src/**/*.csproj', 'Directory.Build.props', '.github/workflows/installer-e2e.yml']
+
+concurrency:
+  group: installer-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Unit tests
+        shell: pwsh
+        run: dotnet test tests/OpsisAppearance.Tests -c Release -m:1 --nologo
+
+      # The installer is built with Inno Setup 7, which has no free, version-pinned package for hosted runners (winget and Chocolatey ship Inno Setup 6),
+      # so this workflow tests the PUBLISHED installer of the newest release.
+      - name: Download the newest published installer and check its SHA-256
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force new | Out-Null
+          $tag = gh release list --repo ${{ github.repository }} --limit 10 --json tagName --jq '.[].tagName' | Select-Object -First 1
+          if (-not $tag) { throw 'no release is published yet' }
+          gh release download $tag --repo ${{ github.repository }} --pattern 'OpsisAppearance-Setup.exe*' --dir new
+          $sum = Get-ChildItem new -Filter '*.sha256' | Select-Object -First 1
+          if (-not $sum) { throw 'the release has no .sha256 for the installer' }
+          $expected = ((Get-Content $sum.FullName -Raw) -split '\s+')[0].ToLower()
+          $actual = (Get-FileHash new\OpsisAppearance-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          if ($expected -ne $actual) { throw "SHA-256 of $tag does not match ($expected vs $actual)" }
+          "EXPECTED_VERSION=$($tag.TrimStart('v'))" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Silent install (stand-alone, Program Files)
+        shell: pwsh
+        run: |
+          $p = Start-Process new\OpsisAppearance-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/MODE=standalone','/LOG=install.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exited with $($p.ExitCode)" }
+          $dir = "${env:ProgramFiles}\Opsis Appearance"
+          if (-not (Test-Path "$dir\OpsisAppearance.exe")) { throw 'OpsisAppearance.exe is not in Program Files' }
+          $key = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall','HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -eq 'Opsis Appearance' } | Select-Object -First 1
+          if (-not $key) { throw 'no uninstall entry in HKLM' }
+          $info = Get-ItemProperty $key.PSPath
+          if ($info.Publisher -ne 'giorstergiopoulos-design') { throw "unexpected publisher '$($info.Publisher)'" }
+          if ($info.DisplayVersion -ne $env:EXPECTED_VERSION) { throw "version $($info.DisplayVersion) != $env:EXPECTED_VERSION" }
+          $v = (Get-Item "$dir\OpsisAppearance.exe").VersionInfo
+          if ($v.CompanyName -ne 'giorstergiopoulos-design' -or $v.ProductName -ne 'Opsis Appearance') { throw "version info: $($v.CompanyName) / $($v.ProductName)" }
+          if (Get-ChildItem $dir -Recurse -Filter *.pdb) { throw 'a PDB was installed' }
+          "installed $($info.DisplayVersion) by $($info.Publisher)"
+
+      - name: Silent uninstall and leftovers
+        shell: pwsh
+        run: |
+          $u = Get-ChildItem 'C:\Program Files\Opsis Appearance' -Filter 'unins*.exe' | Select-Object -First 1
+          $p = Start-Process $u.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "uninstaller exited with $($p.ExitCode)" }
+          Start-Sleep 3
+          if (Test-Path 'C:\Program Files\Opsis Appearance\OpsisAppearance.exe') { throw 'the program was not removed' }

@@ -8,11 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OpsisAppearancePlugin</AssemblyName>
     <RootNamespace>OpsisAppearance</RootNamespace>
-    <Version>1.7.4</Version>
+    <Version>1.7.5</Version>
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <Product>Opsis Appearance</Product>
-    <Company>Opsis Team</Company>
-    <Copyright>Copyright (c) 2026 Opsis Team</Copyright>
+    <Company>giorstergiopoulos-design</Company>
+    <Copyright>Copyright (c) 2026 giorstergiopoulos-design</Copyright>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Suite/apps.json" LogicalName="suite.apps.json" />

@@ -3,7 +3,7 @@
     dist\standalone\     the stand-alone app (framework-dependent, needs the .NET 10 Desktop Runtime)
     dist\plugin\         the Opsis plugin (OpsisAppearancePlugin.dll)
     Output\OpsisAppearance-Standalone-<v>.zip, OpsisAppearance-Plugin-<v>.zip, OpsisAppearance-Setup.exe (+ .sha256 files)
-  Requires the .NET 10 SDK and Inno Setup 7 (6.x works too). Usage: powershell -File build.ps1 [-SkipTests]
+  Requires the .NET 10 SDK and Inno Setup 7. Usage: powershell -File build.ps1 [-SkipTests]
 #>
 param([switch]$SkipTests)
 $ErrorActionPreference = 'Stop'
@@ -44,8 +44,7 @@ Copy-Item "$root\dist\plugin\*" $stage
 Compress-Archive -Path "$root\dist\stage\Opsis Appearance" -DestinationPath $zipPlugin
 
 $iscc = @(
-    "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe", "$env:ProgramFiles\Inno Setup 7\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
-    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+    "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe", "$env:ProgramFiles\Inno Setup 7\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw 'Inno Setup (ISCC.exe) not found' }
 & $iscc "$root\installer\OpsisAppearance.iss"

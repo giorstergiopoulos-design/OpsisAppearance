@@ -52,11 +52,9 @@ public sealed class UpdatePrompt : Form
         {
             try
             {
-                string script = SelfUpdate.BuildScript(r.Path, r.Actual, Environment.ProcessId, Environment.ProcessPath ?? "", _hosted ? "plugin" : "standalone", relaunch: !_hosted, waitForever: _hosted, logPath: Path.Combine(UpdateDir, "last-update.log"));
-                Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe"))
-                { ArgumentList = { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script }, UseShellExecute = false, CreateNoWindow = true });
+                SelfUpdate.StartInstaller(r.Path, r.Actual, _hosted ? "plugin" : "standalone", restartApplications: _hosted, relaunchFlag: _hosted ? null : "/RELAUNCH=1", logPath: Path.Combine(UpdateDir, "last-update.log"));
                 InstallStarted = true;
-                if (_hosted) { MessageBox.Show(this, T("Η ενημέρωση θα εγκατασταθεί όταν κλείσεις το Opsis (το plugin φορτώνεται από το Opsis). Άνοιξέ το ξανά μετά.", "The update installs when you close Opsis (the plugin is loaded by Opsis). Open it again afterwards."), "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Information); InstallStarted = false; }
+                if (_hosted) { MessageBox.Show(this, T("Ο installer θα κλείσει το Opsis για να αντικαταστήσει το plugin και θα το ξανανοίξει μετά.", "The installer closes Opsis to replace the plugin and starts it again afterwards."), "Opsis Appearance", MessageBoxButtons.OK, MessageBoxIcon.Information); InstallStarted = false; }
                 Close(); return;
             }
             catch (Exception ex) { _status.Text = T("Αποτυχία εκκίνησης: ", "Could not start the installer: ") + ex.Message; }

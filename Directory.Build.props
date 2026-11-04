@@ -1,9 +1,22 @@
 <Project>
-  <!-- Reproducible builds without local paths: no "C:\w\..." or user names inside the DLLs (PDB path, source paths). Checked by BuildHygieneTests. -->
+  <!-- Reproducible builds without local paths: no local paths or user names inside the DLLs (PDB path, source paths). Checked by BuildHygieneTests. -->
   <PropertyGroup>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <DeterministicSourcePaths>true</DeterministicSourcePaths>
     <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+  </PropertyGroup>
+  <!-- Release information shown in the file properties of every exe/dll -->
+  <PropertyGroup>
+    <Authors>giorstergiopoulos-design</Authors>
+    <Company>giorstergiopoulos-design</Company>
+    <Copyright>Copyright (c) 2026 giorstergiopoulos-design</Copyright>
+    <RepositoryUrl>https://github.com/giorstergiopoulos-design/OpsisAppearance</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/giorstergiopoulos-design/OpsisAppearance</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Product>Opsis Appearance</Product>
+    <Description>Opsis Appearance - change the look of Windows 11 itself (light/dark, accent, taskbar, window effects, themes).</Description>
   </PropertyGroup>
 </Project>

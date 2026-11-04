@@ -465,23 +465,26 @@ namespace Opsis.Suite
             return await SafeInstaller.DownloadVerifiedAsync(http, asset, expected, destinationDir);
         }
 
-        static string Q(string s) => "'" + (s ?? "").Replace("'", "''") + "'";
-
-        /// <summary>PowerShell script: περιμένει να κλείσει η εφαρμογή, ξαναελέγχει το SHA-256 (TOCTOU), τρέχει τον installer σιωπηλά (με UAC, εγκατάσταση σε Program Files) και ανοίγει ξανά την εφαρμογή.</summary>
-        public static string BuildScript(string setupPath, string sha256, int waitPid, string appExe, string mode = null, bool relaunch = true, bool waitForever = false, string logPath = null)
+        /// <summary>Εκκινεί τον installer ΧΩΡΙΣ κρυφό PowerShell: ανοίγει το αρχείο με κλειδωμένη ανάγνωση (κανείς δεν μπορεί να το αντικαταστήσει), ξαναελέγχει το SHA-256 από το ίδιο handle
+        /// και ξεκινά τον installer με UAC. Το κλείσιμο και το ξανάνοιγμα της εφαρμογής το κάνει ο ίδιος ο installer (Restart Manager: /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS).</summary>
+        public static System.Diagnostics.Process StartInstaller(string setupPath, string sha256, string mode = null, bool restartApplications = false, string relaunchFlag = null, string logPath = null)
         {
+            void Log(string m) { if (string.IsNullOrEmpty(logPath)) return; try { Directory.CreateDirectory(Path.GetDirectoryName(logPath)); File.AppendAllText(logPath, DateTime.Now.ToString("s") + " " + m + Environment.NewLine); } catch (IOException) { } }
             if (string.IsNullOrEmpty(sha256) || sha256.Length != 64) throw new ArgumentException("sha256");
-            string L(string msg) => string.IsNullOrEmpty(logPath) ? "" : "try { Add-Content -LiteralPath " + Q(logPath) + " -Value ((Get-Date -Format s) + ' " + msg + "') } catch { }\n";
-            return "$ErrorActionPreference = 'Stop'\n"
-                 + L("update started")
-                 + "try { Wait-Process -Id " + waitPid + (waitForever ? "" : " -Timeout 120") + " -ErrorAction SilentlyContinue } catch { }\n"
-                 + "if ((Get-FileHash -LiteralPath " + Q(setupPath) + " -Algorithm SHA256).Hash.ToLowerInvariant() -ne " + Q(sha256.ToLowerInvariant()) + ") { " + L("FAILED: SHA-256 changed after download - installer not run") + "exit 2 }\n"
-                 + L("hash ok, running installer")
-                 + "try { $p = Start-Process -FilePath " + Q(setupPath) + " -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS'" + (string.IsNullOrEmpty(mode) ? "" : ",'/MODE=" + mode + "'") + " -Verb RunAs -Wait -PassThru } catch { " + L("FAILED: installer was not started (UAC declined?)") + "exit 3 }\n"
-                 + "if ($p.ExitCode -ne 0) { " + L("FAILED: installer exit code ' + $p.ExitCode + '") + "exit 4 }\n"
-                 + L("installed")
-                 + (relaunch ? "if (Test-Path -LiteralPath " + Q(appExe) + ") { Start-Process -FilePath " + Q(appExe) + " }" : "");
+            using (var fs = new FileStream(setupPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var actual = Convert.ToHexString(SHA256.HashData(fs)).ToLowerInvariant();
+                if (!string.Equals(actual, sha256, StringComparison.OrdinalIgnoreCase)) { Log("FAILED: SHA-256 changed after download - installer not run"); throw new InvalidDataException("hash-mismatch"); }
+                Log("hash ok, starting installer");
+                var psi = new System.Diagnostics.ProcessStartInfo(setupPath, BuildArguments(mode, restartApplications, relaunchFlag)) { UseShellExecute = true, Verb = "runas" };
+                try { var p = System.Diagnostics.Process.Start(psi); Log("installer started"); return p; }
+                catch (System.ComponentModel.Win32Exception ex) { Log("FAILED: installer was not started (UAC declined?) " + ex.Message); throw; }
+            }
         }
+
+        public static string BuildArguments(string mode, bool restartApplications, string relaunchFlag)
+            => "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS" + (restartApplications ? " /RESTARTAPPLICATIONS" : "")
+               + (string.IsNullOrEmpty(mode) ? "" : " /MODE=" + mode) + (string.IsNullOrEmpty(relaunchFlag) ? "" : " " + relaunchFlag);
     }
 
     public static class SuiteLang

@@ -82,29 +82,44 @@ namespace OpsisAppearance.Tests
             now = now.AddDays(2); var newer = await u.CheckAsync(); Assert.NotNull(newer); Assert.Equal("v1.2.0", newer.Tag);
         }
 
-        [Fact] public void ScriptRechecksHashAndEscapesPaths()
+        [Fact] public void InstallerStartRefusesAChangedFileAndLogsIt()
         {
-            string sha = new string('a', 64); var s = SelfUpdate.BuildScript(@"C:\Users\O'Brien\setup.exe", sha, 1234, @"C:\Program Files\Opsis Media Player Pro\OpsisAppearance.exe");
-            Assert.Contains("Get-FileHash", s); Assert.Contains(sha, s); Assert.Contains("O''Brien", s); Assert.Contains("Wait-Process -Id 1234", s); Assert.Contains("/SILENT", s); Assert.Contains("-Verb RunAs", s);
-            Assert.Throws<ArgumentException>(() => SelfUpdate.BuildScript("a.exe", "short", 1, "b.exe"));
+            string dir = Path.Combine(Path.GetTempPath(), "opsis_inst_" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(dir);
+            try
+            {
+                string setup = Path.Combine(dir, "setup.exe"); File.WriteAllBytes(setup, Encoding.ASCII.GetBytes("tampered after download"));
+                string log = Path.Combine(dir, "last-update.log");
+                Assert.Throws<InvalidDataException>(() => SelfUpdate.StartInstaller(setup, new string('a', 64), "standalone", logPath: log));
+                Assert.Contains("FAILED: SHA-256 changed", File.ReadAllText(log));
+                Assert.Throws<ArgumentException>(() => SelfUpdate.StartInstaller(setup, "short"));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact] public void InstallerArgumentsUseRestartManagerAndNoPowerShell()
+        {
+            var plugin = SelfUpdate.BuildArguments("plugin", true, null);
+            Assert.Contains("/CLOSEAPPLICATIONS", plugin); Assert.Contains("/RESTARTAPPLICATIONS", plugin); Assert.Contains("/MODE=plugin", plugin); Assert.DoesNotContain("RELAUNCH", plugin);
+            var alone = SelfUpdate.BuildArguments("standalone", false, "/RELAUNCH=1");
+            Assert.Contains("/MODE=standalone", alone); Assert.Contains("/RELAUNCH=1", alone); Assert.DoesNotContain("/RESTARTAPPLICATIONS", alone);
+        }
+
+        [Fact] public void NoHiddenPowerShellOrExecutionPolicyBypassInTheSources()
+        {
+            string root = AppContext.BaseDirectory; while (root != null && !File.Exists(Path.Combine(root, "OpsisAppearance.sln"))) root = Path.GetDirectoryName(root)!;
+            foreach (var f in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories).Where(x => !x.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar)))
+            {
+                var t = File.ReadAllText(f);
+                Assert.DoesNotContain("ExecutionPolicy", t); Assert.DoesNotContain("-WindowStyle", t);
+            }
         }
     }
 }
 
 namespace OpsisAppearance.Tests
 {
-    public class UpdateScriptModeTests
+    public class UpdateHostedFlagTests
     {
-        [Fact] public void PluginModeWaitsForeverPassesModeAndDoesNotRelaunch()
-        {
-            var s = Opsis.Suite.SelfUpdate.BuildScript(@"C:\x\setup.exe", new string('b', 64), 42, @"C:\Opsis\Opsis.exe", "plugin", relaunch: false, waitForever: true);
-            Assert.Contains("/MODE=plugin", s); Assert.DoesNotContain("-Timeout 120", s); Assert.DoesNotContain("Opsis.exe", s); Assert.Contains("-Verb RunAs", s);
-        }
-        [Fact] public void StandaloneModeRelaunches()
-        {
-            var s = Opsis.Suite.SelfUpdate.BuildScript(@"C:\x\setup.exe", new string('b', 64), 42, @"C:\Prog\OpsisAppearance.exe", "standalone");
-            Assert.Contains("/MODE=standalone", s); Assert.Contains("-Timeout 120", s); Assert.Contains("OpsisAppearance.exe'", s);
-        }
         [Fact] public void PluginStartsUpdateChecksOnlyWhenHosted()
         {
             Assert.True(OpsisAppearance.OpsisAppearancePlugin.HostedByOpsis);        // προεπιλογή: μέσα στο Opsis ελέγχει το plugin

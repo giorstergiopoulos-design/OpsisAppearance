@@ -34,7 +34,7 @@ namespace Opsis.SuiteTests
     {
         public readonly HashSet<string> Files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public readonly List<KeyValuePair<string, string>> Entries = new List<KeyValuePair<string, string>>();
-        public string Expand(string t) => t.Replace("%LocalAppData%", @"C:\Users\x\AppData\Local").Replace("%ProgramFiles%", @"C:\Program Files").Replace("%AppData%", @"C:\Users\x\AppData\Roaming");
+        public string Expand(string t) => t.Replace("%LocalAppData%", @"Z:\Users\x\AppData\Local").Replace("%ProgramFiles%", @"C:\Program Files").Replace("%AppData%", @"Z:\Users\x\AppData\Roaming");
         public bool FileExists(string p) => Files.Contains(p);
         public IEnumerable<KeyValuePair<string, string>> UninstallEntries() => Entries;
     }

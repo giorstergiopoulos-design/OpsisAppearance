@@ -1,4 +1,7 @@
-; Inno Setup 7 script for Opsis Appearance (also compiles with 6.x).
+; Inno Setup 7 script for Opsis Appearance (Inno Setup 7 is required).
+#if Ver < EncodeVer(7, 0, 0)
+  #error This script needs Inno Setup 7 or newer (build.ps1 uses Inno Setup 7\ISCC.exe).
+#endif
 ; Build with build.ps1 (it publishes both builds into dist\ first).
 ;
 ; Two ways to install (second wizard page):
@@ -8,7 +11,7 @@
 ; The wizard looks for Opsis and proposes the plugin install when it finds it.
 ; Silent installs: /VERYSILENT /MODE=plugin | /MODE=standalone   (and /PLUGINROOT=<folder> instead of %AppData%\Opsis\plugins).
 #define MyAppName "Opsis Appearance"
-#define MyAppVersion "1.7.4"
+#define MyAppVersion "1.7.5"
 #define MyAppExe "OpsisAppearance.exe"
 #define OpsisAppId "A9E8F765-1234-4567-89AB-CDEF01234567"
 #define PluginFolder "Opsis Appearance"
@@ -20,7 +23,15 @@
 AppId={{5D2F7B1C-8E43-4A9B-B6C0-71A3E9D4F528}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppPublisher=Opsis Team
+AppPublisher=giorstergiopoulos-design
+AppPublisherURL=https://github.com/giorstergiopoulos-design/OpsisAppearance
+AppSupportURL=https://github.com/giorstergiopoulos-design/OpsisAppearance/issues
+AppUpdatesURL=https://github.com/giorstergiopoulos-design/OpsisAppearance/releases
+VersionInfoCompany=giorstergiopoulos-design
+VersionInfoDescription=Opsis Appearance Setup
+VersionInfoProductName=Opsis Appearance
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoCopyright=Copyright (c) 2026 giorstergiopoulos-design
 WizardImageFile=wizard-large.bmp
 WizardSmallImageFile=wizard-small.bmp
 WizardStyle=modern
@@ -88,6 +99,8 @@ Root: HKLM; Subkey: "Software\Opsis Appearance"; ValueType: string; ValueName: "
 Root: HKLM; Subkey: "Software\Opsis Appearance"; ValueType: string; ValueName: "Mode"; ValueData: "{code:ModeName}"; Flags: uninsdeletekey
 
 [Run]
+; after a silent self-update of the stand-alone app (started by the update popup with /RELAUNCH=1) the app is opened again as the original user
+Filename: "{app}\{#MyAppExe}"; Flags: nowait runasoriginaluser; Check: RelaunchRequested
 Filename: "{app}\{#MyAppExe}"; Description: "{#MyAppName}"; Flags: nowait postinstall skipifsilent; Check: IsStandalone
 
 [UninstallDelete]
@@ -130,6 +143,11 @@ end;
 function IsStandalone: Boolean;
 begin
   Result := not IsPlugin;
+end;
+
+function RelaunchRequested: Boolean;
+begin
+  Result := WizardSilent and IsStandalone and (ExpandConstant('{param:RELAUNCH|0}') = '1');
 end;
 
 function ModeName(Param: String): String;
