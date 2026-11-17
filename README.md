@@ -1,3 +1,6 @@
+> **EL:** Το Opsis Appearance έχει **ενσωματωθεί** στην Εξατομίκευση του [Opsis](https://github.com/giorstergiopoulos-design/Opsis/releases/latest). Αυτό το repo είναι **αρχειοθετημένο** και δεν θα ενημερωθεί ξανά.
+> **EN:** Opsis Appearance has been **merged into** Personalization in [Opsis](https://github.com/giorstergiopoulos-design/Opsis/releases/latest). This repository is **archived** and will not be updated again.
+
 # Opsis Appearance
 
 <p align="center">
